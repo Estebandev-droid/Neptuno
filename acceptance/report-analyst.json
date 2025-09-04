@@ -1,0 +1,31 @@
+{
+  "author": "Trae AI — Analyst",
+  "date": "2025-09-04",
+  "version": "0.1",
+  "sources": {
+    "stakeholder_input": "User chat — respuestas definitivas (KPI, regulatorio, deadline, stakeholders, plataformas, decisiones técnicas)",
+    "artifacts": [
+      "docs/PRD.md",
+      "sprints/backlog-initial.md"
+    ]
+  },
+  "commit_or_workspace_version": "no-vcs-local",
+  "assumptions": [
+    "Single database multi-tenant con RLS en Supabase",
+    "PWA para MVP; apps nativas fuera del MVP",
+    "PEPS básico en MVP"
+  ],
+  "open_questions": [
+    "¿Límite exacto por plan para tamaño/número de medios por empresa?",
+    "¿Esquema de precios públicos: una lista por empresa o múltiples segmentadas?",
+    "¿Se requiere geo (lat/lon) opcional en firmas desde MVP?",
+    "¿Requieren FEFO obligatorio por categoría o por producto individual?",
+    "¿Retención fiscal por país será parametrizable a nivel tenant (valor por defecto sugerido)?"
+  ],
+  "handoff_checklist": {
+    "prd_ready": true,
+    "backlog_ready": true,
+    "user_stories_prioritized": true,
+    "stakeholders_defined": true
+  }
+}

@@ -1,0 +1,24 @@
+Instrucciones rápidas — Cargar scripts en Supabase
+
+1) En el proyecto Supabase, abra SQL Editor.
+2) Ejecute en orden los archivos:
+   - 001_schema_base.sql
+   - 010_functions.sql
+   - 020_rls_policies.sql
+   - 021_rls_super_admins.sql
+   - 030_triggers_audit.sql
+   - 100_domain_inventory.sql
+   - 110_domain_warehouses.sql
+   - 120_domain_orders.sql
+   - 121_rls_domain.sql
+   - 130_triggers_domain.sql
+3) Verifique que no haya errores.
+4) Luego edite 040_seed_super_admin.sql reemplazando su EMAIL o su UID (opción B) y ejecútelo.
+5) Pruebas rápidas (SQL):
+   - select app.is_super_admin();
+   - select app.api_create_tenant('Mi Empresa','mi-empresa');  -- desde cliente autenticado (auth.uid() no null)
+   - select * from app.categories limit 1;  -- RLS: verá 0 filas si no está en el tenant
+6) Notas:
+   - RLS activo en todas las tablas base y de dominio. Super Admin puede ver todo.
+   - audit_log registra INSERT/UPDATE/DELETE en todas las tablas cubiertas.
+   - Si ejecuta funciones desde SQL Editor, auth.uid() puede ser null; pruebe desde el cliente con sesión.
