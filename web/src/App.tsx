@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { supabase } from './lib/supabaseClient'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 
-function ProtectedRoute({ children }: { children: JSX.Element }) {
+function ProtectedRoute({ children }: { children: ReactNode }) {
   const [isAuthed, setIsAuthed] = useState<boolean | null>(null)
 
   useEffect(() => {
@@ -25,7 +25,7 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
 
   if (isAuthed === null) {
     return (
-      <div className="min-h-screen grid place-items-center text-slate-600 dark:text-slate-300">
+      <div className="min-h-screen grid place-items-center text-gray-600">
         Cargando…
       </div>
     )
@@ -35,7 +35,7 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
     return <Navigate to="/login" replace />
   }
 
-  return children
+  return <>{children}</>
 }
 
 export default function App() {
