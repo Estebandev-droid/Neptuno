@@ -164,7 +164,7 @@ export default function Sidebar({
         <SectionTitle title="Catálogo" collapsed={collapsed} />
         <div className="space-y-1">
           <NavItem 
-            to="#" 
+            to="/app/catalog/categories" 
             label="Categorías" 
             icon={RectangleGroupIcon} 
             collapsed={collapsed} 

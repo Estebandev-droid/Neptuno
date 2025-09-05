@@ -10,4 +10,5 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
+// Cliente de Supabase usando el esquema público por defecto
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)

@@ -8,6 +8,11 @@ insert into app.app_super_admins(user_id)
 values ('20ca37f3-8310-4a63-ae8c-9d09cc759079'::uuid)
 on conflict (user_id) do nothing;
 
+    -- Agregar también por email como alternativa
+insert into app.app_super_admins(user_id)
+select id from auth.users where lower(email) = lower('esteban@gmail.com')
+on conflict (user_id) do nothing;
+
 -- Verificaciones rápidas
 -- 1) Confirmar que quedó registrado como Super Admin:
 --    select * from app.app_super_admins;

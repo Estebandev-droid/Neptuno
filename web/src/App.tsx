@@ -4,6 +4,8 @@ import { supabase } from './lib/supabaseClient'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import AppLayout from './layouts/AppLayout'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import Categories from './pages/catalog/Categories'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const [isAuthed, setIsAuthed] = useState<boolean | null>(null)
@@ -39,19 +41,24 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+const queryClient = new QueryClient()
+
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        {/* Protected area with persistent layout */}
-        <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-          <Route path="/app/dev/dashboard" element={<Dashboard />} />
-        </Route>
-        <Route path="/app" element={<Navigate to="/app/dev/dashboard" replace />} />
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          {/* Protected area with persistent layout */}
+          <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+            <Route path="/app/dev/dashboard" element={<Dashboard />} />
+            <Route path="/app/catalog/categories" element={<Categories />} />
+          </Route>
+          <Route path="/app" element={<Navigate to="/app/dev/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </QueryClientProvider>
   )
 }
