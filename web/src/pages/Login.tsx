@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
@@ -52,16 +54,26 @@ export default function Login() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-700 grid place-items-center shadow-lg">
-            <span className="text-white font-bold text-2xl">N</span>
+          <div className="relative w-fit mx-auto">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+              <div className="h-6 w-6 rounded-full bg-white ring-2 ring-emerald-200 grid place-items-center shadow-sm">
+                <ShieldCheckIcon className="h-4 w-4 text-emerald-700" />
+              </div>
+            </div>
+            <div className="h-16 w-16 rounded-2xl ring-4 ring-emerald-100 bg-gradient-to-br from-emerald-500 to-emerald-600 grid place-items-center shadow-xl">
+              <span className="text-white font-extrabold text-2xl drop-shadow-sm">N</span>
+            </div>
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">Neptuno</h2>
-          <p className="mt-2 text-sm text-gray-600">Sistema de gestión empresarial</p>
+           <h2 className="mt-6 text-3xl font-bold text-gray-900">Neptuno</h2>
+           <p className="mt-2 text-sm text-gray-600">Sistema de gestión empresarial</p>
         </div>
 
         <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-200">
           <div className="text-center mb-6">
-            <h3 className="text-xl font-semibold text-gray-900">Iniciar sesión</h3>
+            <h3 className="text-xl font-semibold text-gray-900 inline-flex items-center gap-2 justify-center">
+              <LockClosedIcon className="h-5 w-5 text-brand-700" />
+              Iniciar sesión
+            </h3>
             <p className="mt-1 text-sm text-gray-600">Accede a tu cuenta para continuar</p>
           </div>
 
@@ -76,34 +88,56 @@ export default function Login() {
               <label htmlFor="email" className="block text-sm font-medium text-gray-900 mb-2">
                 Correo electrónico
               </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all duration-200"
-                placeholder="tu@empresa.com"
-              />
+              <div className="relative">
+                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                  <EnvelopeIcon className="h-5 w-5" />
+                </span>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all duration-200"
+                  placeholder="tu@empresa.com"
+                />
+              </div>
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-900 mb-2">
                 Contraseña
               </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all duration-200"
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                  <LockClosedIcon className="h-5 w-5" />
+                </span>
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all duration-200"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  {showPassword ? (
+                    <EyeSlashIcon className="h-5 w-5" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center justify-between">
