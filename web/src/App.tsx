@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { supabase } from './lib/supabaseClient'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import AppLayout from './layouts/AppLayout'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const [isAuthed, setIsAuthed] = useState<boolean | null>(null)
@@ -43,14 +44,10 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route
-          path="/app/dev/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
+        {/* Protected area with persistent layout */}
+        <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+          <Route path="/app/dev/dashboard" element={<Dashboard />} />
+        </Route>
         <Route path="/app" element={<Navigate to="/app/dev/dashboard" replace />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
