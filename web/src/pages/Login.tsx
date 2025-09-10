@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabaseClient'
 import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 
@@ -10,6 +11,14 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const { signIn, user, loading } = useAuth()
+
+  // Redirigir si ya está autenticado
+  useEffect(() => {
+    if (user && !loading) {
+      navigate('/dashboard')
+    }
+  }, [user, loading, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -17,15 +26,20 @@ export default function Login() {
     setError('')
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+      const { error } = await signIn(email, password)
 
       if (error) {
-        setError(error.message)
-      } else if (data.user) {
-        navigate('/app/dev/dashboard')
+        // Traducir errores comunes
+        if (error.message.includes('Invalid login credentials')) {
+          setError('Credenciales inválidas. Verifica tu email y contraseña.')
+        } else if (error.message.includes('Email not confirmed')) {
+          setError('Por favor confirma tu email antes de iniciar sesión.')
+        } else {
+          setError(error.message)
+        }
+      } else {
+        // La redirección se maneja en el useEffect
+        navigate('/dashboard')
       }
     } catch {
       setError('Error inesperado al iniciar sesión')
@@ -39,7 +53,7 @@ export default function Login() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/app/dev/dashboard`
+          redirectTo: `${window.location.origin}/dashboard`
         }
       })
       if (error) {
@@ -48,6 +62,18 @@ export default function Login() {
     } catch {
       setError('Error al iniciar sesión con Google')
     }
+  }
+
+  // Mostrar loading si está verificando autenticación
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Verificando autenticación...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

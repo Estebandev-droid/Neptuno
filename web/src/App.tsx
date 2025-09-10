@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect, useState, type ReactNode } from 'react'
-import { supabase } from './lib/supabaseClient'
+import { type ReactNode } from 'react'
+import { AuthProvider } from './contexts/AuthContext'
+import { useAuth } from './hooks/useAuth'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import AppLayout from './layouts/AppLayout'
@@ -8,33 +9,20 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Categories from './pages/catalog/Categories'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
-  const [isAuthed, setIsAuthed] = useState<boolean | null>(null)
+  const { user, loading } = useAuth()
 
-  useEffect(() => {
-    let mounted = true
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return
-      setIsAuthed(!!data.session)
-    })
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return
-      setIsAuthed(!!session)
-    })
-    return () => {
-      mounted = false
-      listener.subscription.unsubscribe()
-    }
-  }, [])
-
-  if (isAuthed === null) {
+  if (loading) {
     return (
       <div className="min-h-screen grid place-items-center text-gray-600">
-        Cargando…
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+          <p className="mt-4">Cargando...</p>
+        </div>
       </div>
     )
   }
 
-  if (!isAuthed) {
+  if (!user) {
     return <Navigate to="/login" replace />
   }
 
@@ -46,19 +34,20 @@ const queryClient = new QueryClient()
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          {/* Protected area with persistent layout */}
-          <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-            <Route path="/app/dev/dashboard" element={<Dashboard />} />
-            <Route path="/app/catalog/categories" element={<Categories />} />
-          </Route>
-          <Route path="/app" element={<Navigate to="/app/dev/dashboard" replace />} />
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            {/* Protected area with persistent layout */}
+            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/catalog/categories" element={<Categories />} />
+            </Route>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </QueryClientProvider>
   )
 }

@@ -1,35 +1,22 @@
-import { useEffect, useState } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Outlet } from 'react-router-dom'
 import Sidebar from '../components/layout/Sidebar'
 import { SidebarProvider } from '../components/SidebarProvider'
 import { useSidebar } from '../hooks/useSidebar'
-import { supabase } from '../lib/supabaseClient'
+import { useAuth } from '../hooks/useAuth'
 import { Bars3Icon } from '@heroicons/react/24/outline'
 
 function LayoutShell() {
-  const navigate = useNavigate()
   const { collapsed, toggle, mobileOpen, toggleMobile, closeMobile } = useSidebar()
-  const [email, setEmail] = useState<string | null>(null)
+  const { user, signOut } = useAuth()
   const [signingOut, setSigningOut] = useState(false)
-
-  useEffect(() => {
-    let active = true
-    supabase.auth.getUser().then(({ data }) => {
-      if (!active) return
-      setEmail(data.user?.email ?? null)
-    })
-    return () => {
-      active = false
-    }
-  }, [])
 
   const handleLogout = async () => {
     setSigningOut(true)
     try {
-      await supabase.auth.signOut()
+      await signOut()
     } finally {
       setSigningOut(false)
-      navigate('/login', { replace: true })
     }
   }
 
@@ -71,7 +58,7 @@ function LayoutShell() {
             </div>
             <div>
               <h1 className="text-lg font-semibold text-gray-900">Neptuno</h1>
-              {email && <p className="text-sm text-gray-600">{email}</p>}
+              {user?.email && <p className="text-sm text-gray-600">{user.email}</p>}
             </div>
           </div>
           <button
