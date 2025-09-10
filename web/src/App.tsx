@@ -6,7 +6,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import AppLayout from './layouts/AppLayout'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import Categories from './pages/catalog/Categories'
+
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
@@ -41,7 +41,7 @@ export default function App() {
             {/* Protected area with persistent layout */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/catalog/categories" element={<Categories />} />
+
             </Route>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/login" replace />} />

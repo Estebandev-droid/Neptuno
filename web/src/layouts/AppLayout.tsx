@@ -21,7 +21,7 @@ function LayoutShell() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div className="min-h-screen bg-dark text-light">
       {/* Desktop Sidebar */}
       <Sidebar className="hidden md:block" collapsed={collapsed} onToggle={toggle} />
 
@@ -30,7 +30,7 @@ function LayoutShell() {
         <>
           {/* Mobile Overlay - Transparent background to keep page visible */}
           <div
-            className="md:hidden fixed inset-0 bg-transparent z-40 transition-opacity duration-300"
+            className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity duration-300"
             onClick={closeMobile}
           />
           <Sidebar
@@ -41,38 +41,39 @@ function LayoutShell() {
         </>
       )}
 
-      <header className={`${collapsed ? 'md:ml-16' : 'md:ml-64'} border-b border-gray-200 bg-white shadow-sm`}>
-        <div className="max-w-6xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
+      <header className={`${collapsed ? 'md:ml-24' : 'md:ml-72'} glass-header transition-[margin] duration-300 ease-in-out`}>
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Mobile Menu Button */}
             <button
               onClick={toggleMobile}
-              className="md:hidden inline-flex items-center justify-center rounded-lg p-2 text-gray-700 hover:bg-gray-100 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-600 transition-colors"
+              className="md:hidden inline-flex items-center justify-center rounded-lg p-2 text-light glass-nav-item hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-300"
               aria-label="Abrir menú"
             >
               <Bars3Icon className="h-6 w-6" />
             </button>
 
-            <div className="h-8 w-8 rounded-md bg-brand-600 grid place-items-center shadow-sm">
-              <span className="text-white font-bold text-sm">N</span>
+            <div className="h-8 w-8 rounded-md glass-card border border-primary/30 grid place-items-center glow-effect">
+              <span className="text-primary font-bold text-sm">N</span>
             </div>
-            <div>
-              <h1 className="text-lg font-semibold text-gray-900">Neptuno</h1>
-              {user?.email && <p className="text-sm text-gray-600">{user.email}</p>}
+            <div className="hidden sm:block">
+              <h1 className="text-lg font-bold text-light">Neptuno</h1>
+              {user?.email && <p className="text-sm text-light/70 truncate max-w-[200px] lg:max-w-none">{user.email}</p>}
             </div>
           </div>
           <button
             onClick={handleLogout}
             disabled={signingOut}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg glass-button px-2 sm:px-3 py-2 text-xs sm:text-sm text-light hover:scale-105 transition-all duration-300 disabled:opacity-50 font-medium"
           >
-            {signingOut ? 'Cerrando…' : 'Cerrar sesión'}
+            <span className="hidden sm:inline">{signingOut ? 'Cerrando…' : 'Cerrar sesión'}</span>
+            <span className="sm:hidden">{signingOut ? '...' : 'Salir'}</span>
           </button>
         </div>
       </header>
 
-      <main className={`${collapsed ? 'md:ml-16' : 'md:ml-64'} p-6`}>
-        <div className="max-w-6xl mx-auto">
+      <main className={`pt-[73px] transition-[margin] duration-300 ease-in-out ${collapsed ? 'md:ml-24' : 'md:ml-72'}`}>
+        <div className="w-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
           <Outlet />
         </div>
       </main>

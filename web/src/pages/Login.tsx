@@ -67,55 +67,55 @@ export default function Login() {
   // Mostrar loading si está verificando autenticación
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-dark flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Verificando autenticación...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto glow-effect"></div>
+          <p className="mt-4 text-light">Verificando autenticación...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen bg-dark flex items-center justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-6 sm:space-y-8">
         <div className="text-center">
           <div className="relative w-fit mx-auto">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-              <div className="h-6 w-6 rounded-full bg-white ring-2 ring-emerald-200 grid place-items-center shadow-sm">
-                <ShieldCheckIcon className="h-4 w-4 text-emerald-700" />
+              <div className="h-6 w-6 rounded-full bg-dark-secondary ring-2 ring-primary/30 grid place-items-center shadow-sm glow-effect">
+                <ShieldCheckIcon className="h-4 w-4 text-primary" />
               </div>
             </div>
-            <div className="h-16 w-16 rounded-2xl ring-4 ring-emerald-100 bg-gradient-to-br from-emerald-500 to-emerald-600 grid place-items-center shadow-xl">
-              <span className="text-white font-extrabold text-2xl drop-shadow-sm">N</span>
+            <div className="h-16 w-16 rounded-2xl ring-4 ring-primary/20 gradient-primary grid place-items-center shadow-xl glow-effect">
+              <span className="text-dark font-extrabold text-2xl drop-shadow-sm">N</span>
             </div>
           </div>
-           <h2 className="mt-6 text-3xl font-bold text-gray-900">Neptuno</h2>
-           <p className="mt-2 text-sm text-gray-600">Sistema de gestión empresarial</p>
+           <h2 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-bold text-light">Neptuno</h2>
+           <p className="mt-2 text-sm text-light/70">Sistema de gestión educativa</p>
         </div>
 
-        <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-200">
-          <div className="text-center mb-6">
-            <h3 className="text-xl font-semibold text-gray-900 inline-flex items-center gap-2 justify-center">
-              <LockClosedIcon className="h-5 w-5 text-brand-700" />
+        <div className="glass-card p-4 sm:p-6 lg:p-8 rounded-xl">
+          <div className="text-center mb-4 sm:mb-6">
+            <h3 className="text-lg sm:text-xl font-bold text-light inline-flex items-center gap-2 justify-center">
+              <LockClosedIcon className="h-5 w-5 text-primary" />
               Iniciar sesión
             </h3>
-            <p className="mt-1 text-sm text-gray-600">Accede a tu cuenta para continuar</p>
+            <p className="mt-1 text-sm text-light/70">Accede a tu cuenta para continuar</p>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-600">{error}</p>
+            <div className="mb-4 p-3 bg-accent/10 border border-accent/30 rounded-lg">
+              <p className="text-sm text-accent">{error}</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-900 mb-2">
+              <label htmlFor="email" className="block text-sm font-semibold text-light mb-2">
                 Correo electrónico
               </label>
               <div className="relative">
-                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-light/50">
                   <EnvelopeIcon className="h-5 w-5" />
                 </span>
                 <input
@@ -126,18 +126,18 @@ export default function Login() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all duration-200"
+                  className="w-full pl-10 pr-4 py-3 glass-input rounded-lg placeholder-light/40 text-light focus:outline-none transition-all duration-200"
                   placeholder="tu@empresa.com"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-900 mb-2">
+              <label htmlFor="password" className="block text-sm font-semibold text-light mb-2">
                 Contraseña
               </label>
               <div className="relative">
-                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-light/50">
                   <LockClosedIcon className="h-5 w-5" />
                 </span>
                 <input
@@ -148,13 +148,13 @@ export default function Login() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all duration-200"
+                  className="w-full pl-10 pr-10 py-3 glass-input rounded-lg placeholder-light/40 text-light focus:outline-none transition-all duration-200"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-light/50 hover:text-primary transition-colors duration-200"
                   aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
                   {showPassword ? (
@@ -166,21 +166,21 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
               <div className="flex items-center">
                 <input
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
-                  className="h-4 w-4 text-brand-600 focus:ring-brand-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-primary focus:ring-primary border-secondary/30 rounded bg-dark"
                 />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-light/80">
                   Recordar sesión
                 </label>
               </div>
 
               <div className="text-sm">
-                <a href="#" className="font-medium text-brand-600 hover:text-brand-700 transition-colors">
+                <a href="#" className="font-medium text-primary hover:text-secondary transition-colors duration-200">
                   ¿Olvidaste tu contraseña?
                 </a>
               </div>
@@ -189,28 +189,28 @@ export default function Login() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-700 hover:to-brand-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              className="w-full flex justify-center py-3 px-4 rounded-lg text-sm font-bold text-light liquid-gradient hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
             >
               {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </button>
           </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
+          <div className="mt-4 sm:mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-secondary/20" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-dark-secondary text-light/60">O continúa con</span>
+                </div>
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">O continúa con</span>
-              </div>
-            </div>
 
-            <div className="mt-6">
+            <div className="mt-4 sm:mt-6">
               <button
                 onClick={handleGoogleLogin}
-                className="w-full inline-flex justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 transition-all duration-200"
+                className="w-full inline-flex justify-center py-3 px-4 glass-button rounded-lg text-sm font-medium text-light hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-300"
               >
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" viewBox="0 0 24 24">
                   <path
                     fill="#4285F4"
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -233,9 +233,9 @@ export default function Login() {
             </div>
           </div>
 
-          <p className="mt-6 text-center text-sm text-gray-600">
+          <p className="mt-4 sm:mt-6 text-center text-sm text-light/70">
             ¿No tienes cuenta?{' '}
-            <a href="#" className="font-medium text-brand-600 hover:text-brand-700 transition-colors">
+            <a href="#" className="font-medium text-primary hover:text-secondary transition-colors duration-200">
               Solicitar acceso
             </a>
           </p>
