@@ -23,21 +23,21 @@ create trigger trg_certificate_templates_updated_at
 before update on public.certificate_templates
 for each row execute function public.set_updated_at();
 
--- Sincronizar platform_admins con user_roles(platform_admin, tenant_id null)
+-- Sincronizar platform_admins con user_roles(platform_admin)
 create or replace function public.sync_platform_admins()
 returns trigger
 language plpgsql as $$
 declare v_role_name text; begin
   if tg_op = 'INSERT' then
     select r.name into v_role_name from public.roles r where r.id = new.role_id;
-    if v_role_name = 'platform_admin' and new.tenant_id is null then
+    if v_role_name = 'platform_admin' then
       insert into public.platform_admins(user_id) values (new.user_id)
       on conflict (user_id) do nothing;
     end if;
     return new;
   elsif tg_op = 'DELETE' then
     select r.name into v_role_name from public.roles r where r.id = old.role_id;
-    if v_role_name = 'platform_admin' and old.tenant_id is null then
+    if v_role_name = 'platform_admin' then
       delete from public.platform_admins pa where pa.user_id = old.user_id;
     end if;
     return old;

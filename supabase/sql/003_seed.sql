@@ -6,10 +6,51 @@ begin;
 -- Roles base (solo plataforma)
 insert into public.roles (name, description, is_system)
 values
+  ('superadmin','Super Administrador del sistema', true),
   ('platform_admin','Administrador global', true),
   ('teacher','Docente', true),
   ('student','Estudiante', true)
 on conflict (name) do nothing;
+
+-- Función para asignar superadmin al primer usuario registrado
+create or replace function public.assign_superadmin_to_existing_user()
+returns void
+security definer
+set search_path = public
+language plpgsql
+as $$
+declare
+  v_user_id uuid;
+  v_superadmin_role_id uuid;
+begin
+  -- Obtener el primer usuario registrado (el que ya existe)
+  select id into v_user_id 
+  from auth.users 
+  order by created_at 
+  limit 1;
+  
+  -- Obtener el ID del rol superadmin
+  select id into v_superadmin_role_id 
+  from public.roles 
+  where name = 'superadmin';
+  
+  -- Asignar rol de superadmin si ambos existen
+  if v_user_id is not null and v_superadmin_role_id is not null then
+    insert into public.user_roles (user_id, role_id)
+    values (v_user_id, v_superadmin_role_id)
+    on conflict (user_id, role_id) do nothing;
+    
+    -- También crear/actualizar el perfil si no existe
+    insert into public.profiles (id, full_name)
+    select v_user_id, coalesce(raw_user_meta_data->>'full_name', split_part(email,'@',1))
+    from auth.users where id = v_user_id
+    on conflict (id) do nothing;
+  end if;
+end;
+$$;
+
+-- Ejecutar la función para asignar superadmin
+select public.assign_superadmin_to_existing_user();
 
 -- Insertar áreas académicas base
 insert into public.areas (code, name, description) values

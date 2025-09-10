@@ -82,11 +82,11 @@
 
   -- Profiles: cada quien su perfil; admins pueden ver todos
   create policy profiles_self_select on public.profiles
-  for select using (auth.uid() = id or is_platform_admin());
+  for select using (auth.uid() = id or is_platform_admin() or has_role('superadmin'));
   create policy profiles_self_update on public.profiles
-  for update using (auth.uid() = id or is_platform_admin());
+  for update using (auth.uid() = id or is_platform_admin() or has_role('superadmin'));
   create policy profiles_self_insert on public.profiles
-  for insert with check (auth.uid() = id or is_platform_admin());
+  for insert with check (auth.uid() = id or is_platform_admin() or has_role('superadmin'));
 
   -- Platform admins: solo lectura para verificación
   create policy platform_admins_select on public.platform_admins
@@ -787,17 +787,17 @@
     on conflict (user_id, role_id) do nothing;
   end; $$;
 
-  -- Políticas para roles (solo platform_admin)
+  -- Políticas para roles (solo platform_admin y superadmin)
   create policy roles_select on public.roles
-  for select using (is_platform_admin());
+  for select using (is_platform_admin() or has_role('superadmin'));
   create policy roles_write on public.roles
-  for all using (is_platform_admin()) with check (is_platform_admin());
+  for all using (is_platform_admin() or has_role('superadmin')) with check (is_platform_admin() or has_role('superadmin'));
 
   -- Políticas para user_roles
   create policy user_roles_select on public.user_roles
-  for select using (is_platform_admin() or auth.uid() = user_id);
+  for select using (is_platform_admin() or has_role('superadmin') or auth.uid() = user_id);
   create policy user_roles_write on public.user_roles
-  for all to authenticated using (is_platform_admin());
+  for all to authenticated using (is_platform_admin() or has_role('superadmin'));
 
   commit;
 

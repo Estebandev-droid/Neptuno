@@ -5,8 +5,11 @@ import { useAuth } from './hooks/useAuth'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import AppLayout from './layouts/AppLayout'
+import RolesPage from './pages/Roles'
+import UsersPage from './pages/Users'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
+const queryClient = new QueryClient()
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
@@ -29,8 +32,6 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
-const queryClient = new QueryClient()
-
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -38,10 +39,11 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
-            {/* Protected area with persistent layout */}
+            {/* Área protegida con layout persistente */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
-
+              <Route path="/users" element={<UsersPage />} />
+              <Route path="/roles" element={<RolesPage />} />
             </Route>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/login" replace />} />

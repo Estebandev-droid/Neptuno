@@ -54,6 +54,8 @@ create table public.profiles (
   full_name text,
   avatar_url text,
   phone text,
+  signature_url text, -- Campo opcional para firma digital
+  photo_url text, -- Campo opcional para foto del usuario
   extra jsonb default '{}'::jsonb,
   created_at timestamptz default now()
 );
@@ -230,10 +232,22 @@ security definer
 set search_path = public
 language plpgsql
 as $$
+declare
+  v_student_role_id uuid;
 begin
+  -- Crear perfil del usuario
   insert into public.profiles (id, full_name)
   values (new.id, coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email,'@',1)))
   on conflict (id) do nothing;
+  
+  -- Asignar rol de estudiante por defecto
+  select id into v_student_role_id from public.roles where name = 'student';
+  if v_student_role_id is not null then
+    insert into public.user_roles (user_id, role_id)
+    values (new.id, v_student_role_id)
+    on conflict (user_id, role_id) do nothing;
+  end if;
+  
   return new;
 end;
 $$;
