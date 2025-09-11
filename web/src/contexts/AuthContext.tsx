@@ -36,9 +36,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => subscription.unsubscribe()
   }, [])
 
+  // Helper para sanear y normalizar el email
+  const cleanEmail = (email: string) =>
+    email
+      ?.replace(/[\u200B-\u200D\uFEFF]/g, '') // remueve zero-width chars
+      .trim()
+      .toLowerCase()
+
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: cleanEmail(email),
       password,
     })
     return { error }
@@ -46,7 +53,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signUp = async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({
-      email,
+      email: cleanEmail(email),
       password,
     })
     return { error }
@@ -57,7 +64,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email)
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail(email))
     return { error }
   }
 

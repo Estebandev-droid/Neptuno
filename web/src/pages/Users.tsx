@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { listProfiles, assignRole, getUserRoles, createUser, removeProfile, revokeRole } from '../lib/usersService'
 import { listRoles } from '../lib/rolesService'
 import type { Profile } from '../types/users'
@@ -17,12 +17,43 @@ export default function UsersPage() {
   const [roleName, setRoleName] = useState('student')
 
   const [openCreate, setOpenCreate] = useState(false)
+  const [formErrors, setFormErrors] = useState<{ email?: string; password?: string; roleName?: string }>({})
+
+  useEffect(() => {
+    if (roles && roles.length > 0) {
+      const hasCurrent = roles.some(r => r.name === roleName)
+      if (!hasCurrent) {
+        const student = roles.find(r => r.name === 'student')
+        setRoleName(student?.name ?? roles[0].name)
+      }
+    }
+  }, [roles, roleName])
+
+  const validate = () => {
+    const errs: { email?: string; password?: string; roleName?: string } = {}
+    const emailTrim = email.trim()
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailTrim) {
+      errs.email = 'El correo es obligatorio'
+    } else if (!emailRegex.test(emailTrim)) {
+      errs.email = 'Ingresa un correo válido'
+    }
+    if (!password || password.length < 6) {
+      errs.password = 'La contraseña debe tener al menos 6 caracteres'
+    }
+    if (!roleName) {
+      errs.roleName = 'Selecciona un rol'
+    }
+    setFormErrors(errs)
+    return Object.keys(errs).length === 0
+  }
 
   const signUpMut = useMutation({
     mutationFn: () => createUser(email, password, fullName, roleName, phone, signatureUrl, photoUrl),
     onSuccess: () => {
       setEmail(''); setPassword(''); setFullName(''); setPhone(''); setSignatureUrl(''); setPhotoUrl(''); setRoleName('student')
       setOpenCreate(false)
+      setFormErrors({})
       qc.invalidateQueries({ queryKey: ['profiles'] })
     }
   })
@@ -54,26 +85,50 @@ export default function UsersPage() {
         <div className="glass-card p-4 rounded-xl mb-6">
           <h3 className="text-lg font-semibold mb-4">Crear nuevo usuario</h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <input className="glass-input px-4 py-2 rounded-lg" placeholder="Correo (opcional)" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <input className="glass-input px-4 py-2 rounded-lg" placeholder="Nombre completo" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-            <input className="glass-input px-4 py-2 rounded-lg" placeholder="Contraseña" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            <input className="glass-input px-4 py-2 rounded-lg" placeholder="Teléfono (opcional)" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            <select className="glass-input px-4 py-2 rounded-lg" value={roleName} onChange={(e) => setRoleName(e.target.value)}>
-              <option value="student">Estudiante</option>
-              <option value="teacher">Profesor</option>
-              <option value="admin">Administrador</option>
-              <option value="superadmin">Super Administrador</option>
-            </select>
-            <input className="glass-input px-4 py-2 rounded-lg" placeholder="URL de firma (opcional)" value={signatureUrl} onChange={(e) => setSignatureUrl(e.target.value)} />
+            <div>
+              <input className={`glass-input px-4 py-2 rounded-lg w-full ${formErrors.email ? 'ring-1 ring-red-400' : ''}`} placeholder="Correo electrónico" value={email} onChange={(e) => setEmail(e.target.value)} />
+              {formErrors.email && <p className="text-red-400 text-xs mt-1">{formErrors.email}</p>}
+            </div>
+            <div>
+              <input className="glass-input px-4 py-2 rounded-lg w-full" placeholder="Nombre completo (opcional)" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            </div>
+            <div>
+              <input className={`glass-input px-4 py-2 rounded-lg w-full ${formErrors.password ? 'ring-1 ring-red-400' : ''}`} placeholder="Contraseña" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              {formErrors.password && <p className="text-red-400 text-xs mt-1">{formErrors.password}</p>}
+            </div>
+            <div>
+              <input className="glass-input px-4 py-2 rounded-lg w-full" placeholder="Teléfono (opcional)" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </div>
+            <div>
+              <select className={`glass-input px-4 py-2 rounded-lg w-full ${formErrors.roleName ? 'ring-1 ring-red-400' : ''}`} value={roleName} onChange={(e) => setRoleName(e.target.value)}>
+                {roles?.map(r => (
+                  <option key={r.id} value={r.name}>{r.name}</option>
+                ))}
+              </select>
+              {formErrors.roleName && <p className="text-red-400 text-xs mt-1">{formErrors.roleName}</p>}
+            </div>
+            <div>
+              <input className="glass-input px-4 py-2 rounded-lg w-full" placeholder="URL de firma (opcional)" value={signatureUrl} onChange={(e) => setSignatureUrl(e.target.value)} />
+            </div>
           </div>
           <div className="grid gap-3 mt-3">
             <input className="glass-input px-4 py-2 rounded-lg" placeholder="URL de foto (opcional)" value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} />
           </div>
+          {signUpMut.error && (
+            <div className="text-red-400 text-sm mt-2">
+              {(signUpMut.error as Error).message || 'Error al crear usuario'}
+            </div>
+          )}
           <div className="flex gap-2 mt-4">
-            <button className="glass-button px-4 py-2 rounded-lg" onClick={() => signUpMut.mutate()}>Guardar</button>
-            <button className="glass-nav-item px-4 py-2 rounded-lg" onClick={() => setOpenCreate(false)}>Cancelar</button>
+            <button
+              className="glass-button px-4 py-2 rounded-lg disabled:opacity-50"
+              disabled={signUpMut.isPending}
+              onClick={() => {
+                if (validate()) signUpMut.mutate()
+              }}
+            >{signUpMut.isPending ? 'Creando...' : 'Guardar'}</button>
+            <button className="glass-nav-item px-4 py-2 rounded-lg" onClick={() => { setOpenCreate(false); setFormErrors({}) }}>Cancelar</button>
           </div>
-          <p className="text-xs text-light/70 mt-2">Nota: El email es opcional. Si no se proporciona, se generará un usuario sin email.</p>
         </div>
       )}
 

@@ -36,7 +36,7 @@ export async function deleteRole(name: string): Promise<void> {
 }
 
 // Actualiza solo la descripción de un rol existente (usa role_create con mismo nombre)
-export async function updateRoleDescription(name: string, description: string): Promise<void> {
-  const { error } = await supabase.rpc('role_create', { p_name: name, p_description: description ?? null })
+export async function updateRoleDescription(name: string, description: string | null): Promise<void> {
+  const { error } = await supabase.rpc('role_create', { p_name: name, p_description: description })
   if (error) throw error
 }

@@ -29,57 +29,99 @@ export async function createUser(
   signatureUrl?: string,
   photoUrl?: string
 ) {
-  // Crear usuario usando la función create_dev_user de SQL
+  // Crear usuario usando Supabase Auth y luego sincronizar perfil con la RPC create_dev_user
   console.log('Creando usuario:', { email, fullName, roleName, phone })
   
   try {
-    // Validación de email opcional - solo si se proporciona
-    if (email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(email)) {
-        throw new Error('Por favor ingresa un email válido (ejemplo: usuario@dominio.com)')
-      }
-      
-      // Validar que no sea un email temporal o de prueba
-      const tempDomains = ['example.com', 'test.com', 'temp.com']
-      const domain = email.split('@')[1]?.toLowerCase()
-      if (tempDomains.includes(domain)) {
-        throw new Error('No se permiten emails de dominios temporales')
+    // Limpiar/normalizar email (eliminar caracteres invisibles y espacios alrededor)
+    const cleanEmail = email
+      ?.replace(/[\u200B-\u200D\uFEFF]/g, '') // quita zero-width chars
+      .trim()
+      .toLowerCase()
+
+    // Validaciones obligatorias
+    if (!cleanEmail) {
+      throw new Error('El email es obligatorio para crear usuarios')
+    }
+    if (/\s/.test(cleanEmail)) {
+      throw new Error('El correo no debe contener espacios')
+    }
+    if (!password || password.length < 6) {
+      throw new Error('La contraseña es obligatoria y debe tener al menos 6 caracteres')
+    }
+
+    // Validación de formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(cleanEmail)) {
+      throw new Error('Por favor ingresa un email válido (ejemplo: usuario@dominio.com)')
+    }
+
+    // Evitar ciertos dominios temporales comunes (ejemplo)
+    const tempDomains = ['example.com', 'test.com', 'temp.com']
+    const domain = cleanEmail.split('@')[1]?.toLowerCase()
+    if (tempDomains.includes(domain)) {
+      throw new Error('No se permiten emails de dominios temporales')
+    }
+
+    // 1) Registrar el usuario en Supabase Auth (si no existe)
+    const signUpRes = await supabase.auth.signUp({
+      email: cleanEmail,
+      password,
+      options: {
+        data: {
+          full_name: fullName?.trim() || cleanEmail.split('@')[0],
+        },
+      },
+    })
+
+    if (signUpRes.error) {
+      const msg = signUpRes.error.message || ''
+      // Si el usuario ya existe, continuamos (flujo idempotente)
+      const alreadyRegistered = /already registered|User already registered/i.test(msg)
+      if (!alreadyRegistered) {
+        console.error('Error en signUp:', signUpRes.error)
+        // Pista adicional si el error reporta email inválido
+        if (/invalid email|email address .* is invalid/i.test(msg)) {
+          throw new Error(
+            'No se pudo registrar el usuario: el correo fue rechazado por el proveedor de autenticación. Revisa que el proveedor Email esté habilitado y que no haya una lista de dominios permitidos que excluya este dominio en Supabase Auth.'
+          )
+        }
+        throw new Error(`No se pudo registrar el usuario: ${msg}`)
+      } else {
+        console.info('Usuario ya registrado en Auth; continuando con sincronización de perfil...')
       }
     }
-    
-    const devPassword = password || 'password123'
-    
-    // Usar la función RPC create_dev_user con todos los campos
+
+    // 2) Sincronizar/crear perfil y asignar rol con RPC create_dev_user
     const { data, error } = await supabase.rpc('create_dev_user', {
-      p_email: email,
-      p_password: devPassword,
-      p_full_name: fullName || (email ? email.split('@')[0] : 'Usuario'),
+      p_email: cleanEmail,
+      p_password: password, // ignorado por la RPC, solo para compatibilidad
+      p_full_name: fullName?.trim() || cleanEmail.split('@')[0],
       p_role_name: roleName,
       p_phone: phone,
       p_signature_url: signatureUrl,
-      p_photo_url: photoUrl
+      p_photo_url: photoUrl,
     })
-    
+
     if (error) {
       console.error('Error en create_dev_user:', error)
-      throw new Error(`Error al crear usuario: ${error.message}`)
+      throw new Error(`Error al crear usuario (perfil/rol): ${error.message}`)
     }
-    
-    if (!data.success) {
-      console.error('Error en create_dev_user:', data.error)
-      throw new Error(`Error al crear usuario: ${data.error}`)
+
+    if (!data?.success) {
+      console.error('Error en create_dev_user:', data?.error)
+      throw new Error(`Error al crear usuario (perfil/rol): ${data?.error || 'desconocido'}`)
     }
-    
-    console.log('Usuario creado exitosamente:', data)
+
+    console.log('Usuario creado/sincronizado exitosamente:', data)
     return {
       user: {
         id: data.user_id,
         email: data.email,
         user_metadata: {
-          full_name: data.full_name
-        }
-      }
+          full_name: data.full_name,
+        },
+      },
     }
   } catch (error) {
     console.error('Error en createUser:', error)
