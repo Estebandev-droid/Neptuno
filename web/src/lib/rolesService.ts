@@ -13,15 +13,15 @@ export async function listRoles(): Promise<Role[]> {
   return data as Role[]
 }
 
-export async function createRole(name: string): Promise<string> {
+export async function createRole(name: string, description?: string): Promise<string> {
   // Preferir RPC para validar permisos del lado de Supabase
-  console.log('Creando rol:', name)
-  const { data, error } = await supabase.rpc('role_create', { p_name: name })
+  console.log('Creando rol:', name, 'con descripción:', description)
+  const { data, error } = await supabase.rpc('role_create', { p_name: name, p_description: description ?? null })
   if (error) {
     console.error('Error al crear rol:', error)
     throw error
   }
-  console.log('Rol creado exitosamente:', data)
+  console.log('Rol creado/upsert exitosamente:', data)
   return data as string
 }
 
@@ -32,5 +32,11 @@ export async function renameRole(oldName: string, newName: string): Promise<void
 
 export async function deleteRole(name: string): Promise<void> {
   const { error } = await supabase.rpc('role_delete', { p_name: name })
+  if (error) throw error
+}
+
+// Actualiza solo la descripción de un rol existente (usa role_create con mismo nombre)
+export async function updateRoleDescription(name: string, description: string): Promise<void> {
+  const { error } = await supabase.rpc('role_create', { p_name: name, p_description: description ?? null })
   if (error) throw error
 }

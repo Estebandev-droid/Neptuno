@@ -1,19 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { listRoles, createRole, renameRole, deleteRole } from '../lib/rolesService'
+import { listRoles, createRole, renameRole, deleteRole, updateRoleDescription } from '../lib/rolesService'
 
 export default function RolesPage() {
   const qc = useQueryClient()
   const { data: roles, isLoading, error } = useQuery({ queryKey: ['roles'], queryFn: listRoles })
   const [newRole, setNewRole] = useState('')
+  const [newDescription, setNewDescription] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [formErrors, setFormErrors] = useState<{ name?: string }>({})
-  const [editing, setEditing] = useState<{ id: string; oldName: string; newName: string } | null>(null)
+  const [editing, setEditing] = useState<{ id: string; oldName: string; newName: string; oldDescription?: string | null; newDescription?: string | null } | null>(null)
 
   const createMut = useMutation({
-    mutationFn: (name: string) => createRole(name),
+    mutationFn: (payload: { name: string; description?: string }) => createRole(payload.name, payload.description),
     onSuccess: () => {
       setNewRole('')
+      setNewDescription('')
       setShowCreateForm(false)
       setFormErrors({})
       qc.invalidateQueries({ queryKey: ['roles'] })
@@ -23,8 +25,20 @@ export default function RolesPage() {
     }
   })
 
-  const renameMut = useMutation({
-    mutationFn: ({ oldName, newName }: { oldName: string; newName: string }) => renameRole(oldName, newName),
+  const saveMut = useMutation({
+    mutationFn: async (payload: { oldName: string; newName: string; oldDescription?: string | null; newDescription?: string | null }) => {
+      const finalName = payload.newName.trim()
+      if (payload.oldName !== finalName) {
+        await renameRole(payload.oldName, finalName)
+      }
+      const oldDesc = payload.oldDescription ?? null
+      const newDesc = (payload.newDescription ?? '').trim()
+      const newDescNull = newDesc.length === 0 ? null : newDesc
+      const descChanged = oldDesc !== newDescNull
+      if (descChanged) {
+        await updateRoleDescription(finalName, newDesc)
+      }
+    },
     onSuccess: () => {
       setEditing(null)
       qc.invalidateQueries({ queryKey: ['roles'] })
@@ -53,13 +67,14 @@ export default function RolesPage() {
 
   const handleCreateRole = () => {
     if (validateForm()) {
-      createMut.mutate(newRole.trim())
+      createMut.mutate({ name: newRole.trim(), description: newDescription.trim() || undefined })
     }
   }
 
   const handleCancelCreate = () => {
     setShowCreateForm(false)
     setNewRole('')
+    setNewDescription('')
     setFormErrors({})
   }
 
@@ -110,6 +125,16 @@ export default function RolesPage() {
               )}
             </div>
 
+            <div>
+              <label className="block text-sm font-medium mb-2">Descripción (opcional)</label>
+              <input
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                placeholder="Describe brevemente el rol"
+                className="glass-input px-4 py-2 rounded-lg w-full"
+              />
+            </div>
+
             <div className="flex gap-2 justify-end">
               <button
                 onClick={handleCreateRole}
@@ -129,14 +154,27 @@ export default function RolesPage() {
         {roles?.map((r) => (
           <div key={r.id} className="glass-card p-4 rounded-xl">
             {editing?.id === r.id ? (
-              <div className="flex items-center gap-2">
-                <input
-                  value={editing.newName}
-                  onChange={(e) => setEditing({ ...editing, newName: e.target.value })}
-                  className="glass-input px-3 py-2 rounded-lg flex-1"
-                />
-                <button className="glass-button px-3 py-2 rounded-lg" onClick={() => renameMut.mutate({ oldName: editing.oldName, newName: editing.newName })}>Guardar</button>
-                <button className="glass-nav-item px-3 py-2 rounded-lg" onClick={() => setEditing(null)}>Cancelar</button>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={editing.newName}
+                    onChange={(e) => setEditing({ ...editing!, newName: e.target.value })}
+                    className="glass-input px-3 py-2 rounded-lg flex-1"
+                    placeholder="Nombre del rol"
+                  />
+                </div>
+                <div>
+                  <input
+                    value={editing.newDescription ?? ''}
+                    onChange={(e) => setEditing({ ...editing!, newDescription: e.target.value })}
+                    className="glass-input px-3 py-2 rounded-lg w-full"
+                    placeholder="Descripción (opcional)"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button className="glass-button px-3 py-2 rounded-lg" onClick={() => editing && saveMut.mutate(editing)}>Guardar</button>
+                  <button className="glass-nav-item px-3 py-2 rounded-lg" onClick={() => setEditing(null)}>Cancelar</button>
+                </div>
               </div>
             ) : (
               <div className="flex items-center justify-between">
@@ -145,7 +183,7 @@ export default function RolesPage() {
                   {r.description && <p className="text-sm text-light/70">{r.description}</p>}
                 </div>
                 <div className="flex gap-2">
-                  <button className="glass-nav-item px-3 py-2 rounded-lg" onClick={() => setEditing({ id: r.id, oldName: r.name, newName: r.name })}>Editar</button>
+                  <button className="glass-nav-item px-3 py-2 rounded-lg" onClick={() => setEditing({ id: r.id, oldName: r.name, newName: r.name, oldDescription: r.description ?? null, newDescription: r.description ?? '' })}>Editar</button>
                   {!r.is_system && (
                     <button className="glass-button px-3 py-2 rounded-lg" onClick={() => deleteMut.mutate(r.name)}>Eliminar</button>
                   )}

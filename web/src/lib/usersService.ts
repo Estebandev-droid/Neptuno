@@ -20,58 +20,67 @@ export async function listProfiles(): Promise<Profile[]> {
   return data as Profile[]
 }
 
-export async function createUser(email: string, password: string, fullName?: string) {
-  // Crear usuario usando signUp con configuración para desarrollo
-  console.log('Creando usuario:', { email, fullName })
+export async function createUser(
+  email: string, 
+  password: string, 
+  fullName?: string, 
+  roleName: string = 'student',
+  phone?: string,
+  signatureUrl?: string,
+  photoUrl?: string
+) {
+  // Crear usuario usando la función create_dev_user de SQL
+  console.log('Creando usuario:', { email, fullName, roleName, phone })
   
   try {
-    // Asegurar formato de email válido
-    const devEmail = email.includes('@') ? email : `${email}@example.com`
+    // Validación de email opcional - solo si se proporciona
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) {
+        throw new Error('Por favor ingresa un email válido (ejemplo: usuario@dominio.com)')
+      }
+      
+      // Validar que no sea un email temporal o de prueba
+      const tempDomains = ['example.com', 'test.com', 'temp.com']
+      const domain = email.split('@')[1]?.toLowerCase()
+      if (tempDomains.includes(domain)) {
+        throw new Error('No se permiten emails de dominios temporales')
+      }
+    }
+    
     const devPassword = password || 'password123'
     
-    // Intentar crear usuario con signUp
-    const { data, error } = await supabase.auth.signUp({
-      email: devEmail,
-      password: devPassword,
-      options: {
-        data: {
-          full_name: fullName || email.split('@')[0]
-        }
-      }
+    // Usar la función RPC create_dev_user con todos los campos
+    const { data, error } = await supabase.rpc('create_dev_user', {
+      p_email: email,
+      p_password: devPassword,
+      p_full_name: fullName || (email ? email.split('@')[0] : 'Usuario'),
+      p_role_name: roleName,
+      p_phone: phone,
+      p_signature_url: signatureUrl,
+      p_photo_url: photoUrl
     })
     
     if (error) {
-      console.error('Error en signUp:', error)
-      
-      // Si el error es por email ya existente, intentar obtener el usuario
-      if (error.message.includes('already registered')) {
-        console.log('Usuario ya existe, obteniendo información...')
-        
-        // Buscar el perfil existente
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', (await supabase.auth.signInWithPassword({ email: devEmail, password: devPassword })).data.user?.id)
-          .single()
-        
-        if (!profileError && profile) {
-          return {
-            user: {
-              id: profile.id,
-              email: devEmail,
-              user_metadata: {
-                full_name: profile.full_name
-              }
-            }
-          }
-        }
-      }
-      
+      console.error('Error en create_dev_user:', error)
       throw new Error(`Error al crear usuario: ${error.message}`)
     }
     
+    if (!data.success) {
+      console.error('Error en create_dev_user:', data.error)
+      throw new Error(`Error al crear usuario: ${data.error}`)
+    }
+    
     console.log('Usuario creado exitosamente:', data)
-    return data
+    return {
+      user: {
+        id: data.user_id,
+        email: data.email,
+        user_metadata: {
+          full_name: data.full_name
+        }
+      }
+    }
   } catch (error) {
     console.error('Error en createUser:', error)
     throw error
@@ -97,8 +106,26 @@ export async function getUserRoles(userId: string): Promise<string[]> {
 }
 
 export async function removeProfile(userId: string): Promise<void> {
-  // Eliminar perfil elimina auth.user por ON DELETE? No, profiles referencia auth.users y se borra en cascada desde auth.
-  // Con anon key no tenemos auth admin para borrar usuarios, así que limitamos a limpiar perfiles si política lo permite (no recomendable borrar perfiles sin usuario). Mejor no exponer.
-  console.log('Attempting to remove profile for user:', userId)
-  throw new Error('Eliminar usuarios requiere privilegios administrativos (service role) no disponibles en el frontend.')
+  console.log('Eliminando usuario:', userId)
+  
+  try {
+    const { data, error } = await supabase.rpc('delete_dev_user', {
+      p_user_id: userId
+    })
+    
+    if (error) {
+      console.error('Error en delete_dev_user:', error)
+      throw new Error(`Error al eliminar usuario: ${error.message}`)
+    }
+    
+    if (!data.success) {
+      console.error('Error en delete_dev_user:', data.error)
+      throw new Error(`Error al eliminar usuario: ${data.error}`)
+    }
+    
+    console.log('Usuario eliminado exitosamente:', data.message)
+  } catch (error) {
+    console.error('Error en removeProfile:', error)
+    throw error
+  }
 }

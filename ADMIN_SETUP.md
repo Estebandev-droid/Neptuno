@@ -1,69 +1,34 @@
 # Configuración de Base de Datos - Neptuno
 
-## Scripts de Base de Datos (Orden de Ejecución)
+## Orden recomendado de ejecución (Supabase SQL Editor)
 
-Para configurar la base de datos desde cero, ejecuta los scripts en este orden en el SQL Editor de Supabase:
+Opción A: Desarrollo rápido (sin RLS, acceso libre)
 
-### 1. Configuración Inicial
-```sql
--- 1. Resetear todo (opcional, solo si necesitas limpiar)
-\i 000_reset_all.sql
+1. 001_schema.sql  → crea tablas y relaciones básicas
+2. 002_update.sql  → agrega triggers y auditoría
+3. 003_seed.sql    → inserta datos iniciales (roles, tenant demo, curso demo)
+4. 010_disable_rls_for_dev.sql → deshabilita RLS y limpia políticas para desarrollo
+5. 005_admin_api.sql → crea funciones RPC usadas por el frontend durante DEV
 
--- 2. Crear esquema y tablas
-\i 001_schema.sql
+Opción B: Entorno con seguridad (preproducción/producción)
 
--- 3. Actualizar estructura si es necesario
-\i 002_update.sql
+1. 001_schema.sql
+2. 002_update.sql
+3. 003_seed.sql (opcional o mínimo)
+4. 004_policies.sql → habilita RLS y crea políticas
+5. 005_admin_api.sql → crear o adaptar con validaciones de permisos por rol
 
--- 4. Insertar datos iniciales
-\i 003_seed.sql
-```
+Notas
 
-### 2. Configuración para Desarrollo (SIN PERMISOS)
-```sql
--- 5. Deshabilitar RLS para desarrollo libre
-\i 010_disable_rls_for_dev.sql
+- 005_admin_api.sql ya incluye las RPC que usa el frontend: role_create, role_rename, role_delete, user_role_assign, user_role_revoke, user_roles_list, create_dev_user, delete_dev_user.
+- En DEV, las RPC no validan permisos estrictos. En PROD, debes agregar verificaciones con is_platform_admin() y/o has_role().
+- 003_seed.sql es idempotente y solo crea un tenant demo (demo.neptuno.edu), una categoría "General" y un curso "Curso de Bienvenida".
 
--- 6. Crear funciones RPC sin validaciones de permisos
-\i 005_admin_api.sql
-```
+Verificación rápida
 
-## Estado Actual
+- SELECT * FROM public.roles;
+- SELECT * FROM public.tenants;
+- SELECT public.is_platform_admin();
+- SELECT * FROM public.user_roles WHERE user_id = auth.uid();
 
-✅ **Funciones RLS deshabilitadas** - Acceso completo a todas las tablas
-✅ **Funciones RPC sin validaciones** - Crear/editar/eliminar sin restricciones
-✅ **Scripts de permisos eliminados** - Sin complicaciones de administrador
-
-## Funcionalidades Disponibles
-
-- ✅ Crear, editar y eliminar roles
-- ✅ Asignar roles a usuarios
-- ✅ Gestión completa de perfiles
-- ✅ CRUD completo en todas las tablas
-
-## Para Producción (Futuro)
-
-Cuando la aplicación esté lista para producción:
-
-1. Ejecutar `004_policies.sql` para habilitar RLS
-2. Modificar `005_admin_api.sql` para agregar validaciones de permisos
-3. Crear scripts de asignación de administradores
-
-## Estructura de Archivos
-
-```
-supabase/sql/
-├── 000_reset_all.sql      # Reset completo (desarrollo)
-├── 001_schema.sql         # Estructura de tablas
-├── 002_update.sql         # Actualizaciones de esquema
-├── 003_seed.sql           # Datos iniciales
-├── 004_policies.sql       # Políticas RLS (para producción)
-├── 005_admin_api.sql      # Funciones RPC (sin permisos)
-└── 010_disable_rls_for_dev.sql  # Deshabilitar RLS
-```
-
-## Desarrollo Actual
-
-**Estado**: Desarrollo libre sin restricciones de permisos
-**Objetivo**: Construir funcionalidades core de la aplicación
-**Seguridad**: Se implementará en fase de producción
+Si algo falla, ejecuta los scripts nuevamente en el orden indicado o revisa que las funciones/grants existan.

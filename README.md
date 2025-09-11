@@ -1,8 +1,8 @@
-# EduManager Pro 🎓
+# Neptuno 🎓
 
 **SaaS Multi-tenant para Gestión Integral de Instituciones Educativas**
 
-EduManager Pro es una plataforma white-label, modular y escalable que unifica administración académica, aulas virtuales, evaluación, reporting y portal de padres, con branding autogestionado por institución.
+Neptuno es una plataforma white-label, modular y escalable que unifica administración académica, aulas virtuales, evaluación, reporting y portal de padres, con branding autogestionado por institución.
 
 ## 🚀 Características Principales
 
@@ -142,6 +142,18 @@ cd web
 npm run dev
 ```
 
+## Base de datos (Supabase)
+
+Para preparar la base de datos en el SQL Editor de Supabase, ejecuta los scripts en este orden:
+
+- 001_schema.sql
+- 002_update.sql
+- 003_seed.sql
+- 010_disable_rls_for_dev.sql (solo para desarrollo) o 004_policies.sql (preproducción/producción)
+- 005_admin_api.sql
+
+Consulta el archivo ADMIN_SETUP.md para detalles, notas y verificación rápida.
+
 ## 📁 Estructura del Proyecto
 
 ```
@@ -205,4 +217,4 @@ Para soporte técnico o consultas comerciales:
 
 ---
 
-**EduManager Pro** - Transformando la educación a través de la tecnología 🚀
+**Neptuno** - Transformando la educación a través de la tecnología 🚀
