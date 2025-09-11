@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import CategoriesPage from './pages/Categories'
 import CoursesPage from './pages/Courses'
 import CourseDetailPage from './pages/CourseDetail'
+import EnrollmentsPage from './pages/Enrollments'
 
 const queryClient = new QueryClient()
 
@@ -50,6 +51,7 @@ export default function App() {
               <Route path="/categories" element={<CategoriesPage />} />
               <Route path="/courses" element={<CoursesPage />} />
               <Route path="/courses/:id" element={<CourseDetailPage />} />
+              <Route path="/enrollments" element={<EnrollmentsPage />} />
             </Route>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/login" replace />} />
