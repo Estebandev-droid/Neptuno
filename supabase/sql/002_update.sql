@@ -1,9 +1,13 @@
+-- =============================================
 -- 002_update.sql
--- Mantenimiento: triggers updated_at y sincronización de platform_admins con user_roles.
+-- Mantenimiento: triggers updated_at, auditoría y sincronización de platform_admins con roles
+-- =============================================
 
 begin;
 
+-- =============================================
 -- Función genérica para updated_at
+-- =============================================
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql as $$
@@ -12,22 +16,71 @@ begin
   return new;
 end; $$;
 
+-- =============================================
 -- Triggers updated_at (idempotentes)
+-- =============================================
+-- Tenants
+drop trigger if exists trg_tenants_updated_at on public.tenants;
+create trigger trg_tenants_updated_at
+before update on public.tenants
+for each row execute function public.set_updated_at();
+
+-- Profiles
+drop trigger if exists trg_profiles_updated_at on public.profiles;
+create trigger trg_profiles_updated_at
+before update on public.profiles
+for each row execute function public.set_updated_at();
+
+-- Categories
 drop trigger if exists trg_categories_updated_at on public.categories;
 create trigger trg_categories_updated_at
 before update on public.categories
 for each row execute function public.set_updated_at();
 
-drop trigger if exists trg_certificate_templates_updated_at on public.certificate_templates;
-create trigger trg_certificate_templates_updated_at
-before update on public.certificate_templates
+-- Courses
+drop trigger if exists trg_courses_updated_at on public.courses;
+create trigger trg_courses_updated_at
+before update on public.courses
 for each row execute function public.set_updated_at();
 
--- Sincronizar platform_admins con user_roles(platform_admin)
+-- Resources
+drop trigger if exists trg_resources_updated_at on public.resources;
+create trigger trg_resources_updated_at
+before update on public.resources
+for each row execute function public.set_updated_at();
+
+-- Tasks
+drop trigger if exists trg_tasks_updated_at on public.tasks;
+create trigger trg_tasks_updated_at
+before update on public.tasks
+for each row execute function public.set_updated_at();
+
+-- Evaluations
+drop trigger if exists trg_evaluations_updated_at on public.evaluations;
+create trigger trg_evaluations_updated_at
+before update on public.evaluations
+for each row execute function public.set_updated_at();
+
+-- Grades
+drop trigger if exists trg_grades_updated_at on public.grades;
+create trigger trg_grades_updated_at
+before update on public.grades
+for each row execute function public.set_updated_at();
+
+-- Certificates
+drop trigger if exists trg_certificates_updated_at on public.certificates;
+create trigger trg_certificates_updated_at
+before update on public.certificates
+for each row execute function public.set_updated_at();
+
+-- =============================================
+-- Sincronizar platform_admins con user_roles (role = 'platform_admin')
+-- =============================================
 create or replace function public.sync_platform_admins()
 returns trigger
 language plpgsql as $$
-declare v_role_name text; begin
+declare v_role_name text; 
+begin
   if tg_op = 'INSERT' then
     select r.name into v_role_name from public.roles r where r.id = new.role_id;
     if v_role_name = 'platform_admin' then
@@ -55,56 +108,24 @@ create trigger trg_user_roles_sync_pa_del
 after delete on public.user_roles
 for each row execute function public.sync_platform_admins();
 
--- Triggers para las nuevas tablas
-create trigger courses_updated_at
-  before update on public.courses
-  for each row execute function public.set_updated_at();
-
-create trigger tasks_updated_at
-  before update on public.tasks
-  for each row execute function public.set_updated_at();
-
-create trigger course_modules_updated_at
-  before update on public.course_modules
-  for each row execute function public.set_updated_at();
-
-create trigger lessons_updated_at
-  before update on public.lessons
-  for each row execute function public.set_updated_at();
-
-create trigger resource_library_updated_at
-  before update on public.resource_library
-  for each row execute function public.set_updated_at();
-
+-- =============================================
 -- Función para crear notificaciones automáticas
+-- =============================================
 create or replace function public.create_notification()
 returns trigger language plpgsql security definer as $$
 begin
   -- Notificación cuando se asigna una nueva tarea
   if TG_TABLE_NAME = 'tasks' and TG_OP = 'INSERT' then
-    insert into public.notifications (user_id, title, message, type)
-    select e.student_id, 'Nueva tarea asignada', 'Nueva tarea asignada: ' || NEW.title, 'academic'
+    insert into public.notifications (tenant_id, user_id, title, message, type)
+    select e.tenant_id, e.student_id, 'Nueva tarea asignada', 'Nueva tarea: ' || NEW.title, 'academic'
     from public.enrollments e
     where e.course_id = NEW.course_id and e.status = 'active';
   end if;
 
-  -- Notificación cuando se califica una entrega
-  if TG_TABLE_NAME = 'submissions' and TG_OP = 'UPDATE' and OLD.grade is null and NEW.grade is not null then
-    insert into public.notifications (user_id, title, message, type)
-    values (NEW.student_id, 'Tarea calificada', 'Tu tarea ha sido calificada', 'academic');
-  end if;
-
-  -- Notificación cuando se agrega una observación
-  if TG_TABLE_NAME = 'observations' and TG_OP = 'INSERT' then
-    -- Notificar al estudiante
-    insert into public.notifications (user_id, title, message, type)
-    values (NEW.student_id, 'Nueva observación', 'Se agregó una nueva observación a tu perfil', 'observation');
-    
-    -- Notificar a los padres
-    insert into public.notifications (user_id, title, message, type)
-    select psr.parent_id, 'Nueva observación del estudiante', 'Nueva observación sobre tu hijo/a', 'observation'
-    from public.parent_student_relationships psr
-    where psr.student_id = NEW.student_id;
+  -- Notificación cuando se califica una entrega (suponiendo que grades se actualiza después de evaluar)
+  if TG_TABLE_NAME = 'grades' and TG_OP = 'INSERT' then
+    insert into public.notifications (tenant_id, user_id, title, message, type)
+    values (NEW.tenant_id, NEW.student_id, 'Tarea calificada', 'Se registró una calificación', 'academic');
   end if;
 
   return coalesce(NEW, OLD);
@@ -112,108 +133,19 @@ end;
 $$;
 
 -- Triggers para notificaciones automáticas
+drop trigger if exists tasks_notification_trigger on public.tasks;
 create trigger tasks_notification_trigger
   after insert on public.tasks
   for each row execute function public.create_notification();
 
-create trigger submissions_notification_trigger
-  after update on public.submissions
+drop trigger if exists grades_notification_trigger on public.grades;
+create trigger grades_notification_trigger
+  after insert on public.grades
   for each row execute function public.create_notification();
 
-create trigger observations_notification_trigger
-  after insert on public.observations
-  for each row execute function public.create_notification();
-
--- Función para actualizar progreso de lecciones
-create or replace function public.update_lesson_progress()
-returns trigger language plpgsql security definer as $$
-begin
-  -- Actualizar last_accessed_at cuando se modifica el progreso
-  NEW.last_accessed_at = now();
-  
-  -- Si se marca como completada, establecer completed_at
-  if NEW.status = 'completed' and OLD.status != 'completed' then
-    NEW.completed_at = now();
-  end if;
-  
-  return NEW;
-end;
-$$;
-
-create trigger lesson_progress_update_trigger
-  before update on public.lesson_progress
-  for each row execute function public.update_lesson_progress();
-
--- Triggers updated_at para Etapa 1
-drop trigger if exists trg_academic_years_updated_at on public.academic_years;
-create trigger trg_academic_years_updated_at
-before update on public.academic_years
-for each row execute function public.set_updated_at();
-
-drop trigger if exists trg_terms_updated_at on public.terms;
-create trigger trg_terms_updated_at
-before update on public.terms
-for each row execute function public.set_updated_at();
-
-drop trigger if exists trg_classrooms_updated_at on public.classrooms;
-create trigger trg_classrooms_updated_at
-before update on public.classrooms
-for each row execute function public.set_updated_at();
-
-drop trigger if exists trg_sections_updated_at on public.sections;
-create trigger trg_sections_updated_at
-before update on public.sections
-for each row execute function public.set_updated_at();
-
--- Triggers para tablas de Etapa 2
-drop trigger if exists set_updated_at_subjects on public.subjects;
-create trigger set_updated_at_subjects
-  before update on public.subjects
-  for each row execute function public.set_updated_at();
-
-drop trigger if exists set_updated_at_announcements on public.announcements;
-create trigger set_updated_at_announcements
-  before update on public.announcements
-  for each row execute function public.set_updated_at();
-
-drop trigger if exists set_updated_at_events on public.events;
-create trigger set_updated_at_events
-  before update on public.events
-  for each row execute function public.set_updated_at();
-
-drop trigger if exists set_updated_at_notification_preferences on public.notification_preferences;
-create trigger set_updated_at_notification_preferences
-  before update on public.notification_preferences
-  for each row execute function public.set_updated_at();
-
--- Triggers para tablas de Etapa 3
-drop trigger if exists set_updated_at_question_bank on public.question_bank;
-create trigger set_updated_at_question_bank
-  before update on public.question_bank
-  for each row execute function public.set_updated_at();
-
-drop trigger if exists set_updated_at_rubrics on public.rubrics;
-create trigger set_updated_at_rubrics
-  before update on public.rubrics
-  for each row execute function public.set_updated_at();
-
-drop trigger if exists set_updated_at_invoices on public.invoices;
-create trigger set_updated_at_invoices
-  before update on public.invoices
-  for each row execute function public.set_updated_at();
-
-drop trigger if exists set_updated_at_scholarships on public.scholarships;
-create trigger set_updated_at_scholarships
-  before update on public.scholarships
-  for each row execute function public.set_updated_at();
-
--- Triggers para tablas de Etapa 4
-drop trigger if exists set_updated_at_library_loans on public.library_loans;
-create trigger set_updated_at_library_loans
-  before update on public.library_loans
-  for each row execute function public.set_updated_at();
-
--- Función para auditoría automática
+-- =============================================
+-- Auditoría (Audit Log)
+-- =============================================
 create or replace function public.audit_trigger()
 returns trigger
 security definer
@@ -252,11 +184,6 @@ create trigger audit_enrollments
 drop trigger if exists audit_grades on public.grades;
 create trigger audit_grades
   after insert or update or delete on public.grades
-  for each row execute function public.audit_trigger();
-
-drop trigger if exists audit_payments on public.payments;
-create trigger audit_payments
-  after insert or update or delete on public.payments
   for each row execute function public.audit_trigger();
 
 commit;

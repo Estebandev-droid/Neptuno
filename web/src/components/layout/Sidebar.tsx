@@ -5,6 +5,8 @@ import {
   ChevronDoubleRightIcon,
   UsersIcon,
   ShieldCheckIcon,
+  TagIcon,
+  BookOpenIcon,
 } from '@heroicons/react/24/outline'
 import type React from 'react'
 
@@ -156,6 +158,18 @@ export default function Sidebar({
             to="/roles" 
             label="Roles" 
             icon={ShieldCheckIcon} 
+            collapsed={collapsed} 
+          />
+          <NavItem 
+            to="/categories" 
+            label="Categorías" 
+            icon={TagIcon} 
+            collapsed={collapsed} 
+          />
+          <NavItem 
+            to="/courses" 
+            label="Cursos" 
+            icon={BookOpenIcon} 
             collapsed={collapsed} 
           />
         </div>
