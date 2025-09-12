@@ -8,8 +8,10 @@ import {
   TagIcon,
   BookOpenIcon,
   UserPlusIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline'
 import type React from 'react'
+import { DocumentTextIcon } from '@heroicons/react/24/outline'
 
 interface SidebarProps {
   className?: string
@@ -171,6 +173,18 @@ export default function Sidebar({
             to="/courses" 
             label="Cursos" 
             icon={BookOpenIcon} 
+            collapsed={collapsed} 
+          />
+          <NavItem 
+            to="/tasks" 
+            label="Tareas" 
+            icon={ClipboardDocumentListIcon} 
+            collapsed={collapsed} 
+          />
+          <NavItem 
+            to="/submissions" 
+            label="Entregas y Calificaciones" 
+            icon={DocumentTextIcon} 
             collapsed={collapsed} 
           />
           <NavItem 

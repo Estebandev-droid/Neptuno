@@ -12,6 +12,8 @@ import CategoriesPage from './pages/Categories'
 import CoursesPage from './pages/Courses'
 import CourseDetailPage from './pages/CourseDetail'
 import EnrollmentsPage from './pages/Enrollments'
+import TasksPage from './pages/Tasks'
+import SubmissionsPage from './pages/Submissions'
 
 const queryClient = new QueryClient()
 
@@ -44,16 +46,18 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             {/* Área protegida con layout persistente */}
-            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/users" element={<UsersPage />} />
-              <Route path="/roles" element={<RolesPage />} />
-              <Route path="/categories" element={<CategoriesPage />} />
-              <Route path="/courses" element={<CoursesPage />} />
-              <Route path="/courses/:id" element={<CourseDetailPage />} />
-              <Route path="/enrollments" element={<EnrollmentsPage />} />
+            <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="users" element={<UsersPage />} />
+              <Route path="roles" element={<RolesPage />} />
+              <Route path="categories" element={<CategoriesPage />} />
+              <Route path="courses" element={<CoursesPage />} />
+              <Route path="courses/:id" element={<CourseDetailPage />} />
+              <Route path="enrollments" element={<EnrollmentsPage />} />
+              <Route path="tasks" element={<TasksPage />} />
+              <Route path="submissions" element={<SubmissionsPage />} />
             </Route>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </BrowserRouter>
