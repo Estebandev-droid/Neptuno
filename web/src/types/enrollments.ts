@@ -8,3 +8,5 @@ export interface Enrollment {
   enrolled_at?: string | null
   status: EnrollmentStatus
 }
+
+//
