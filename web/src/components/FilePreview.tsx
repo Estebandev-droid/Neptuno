@@ -168,7 +168,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({
   };
 
   return (
-    <div className={`file-preview ${className}`}>
+    <div className={`file-preview scrollbar-styled ${className}`}>
       {renderPreview()}
       <div className="flex justify-end mt-2">
         <button

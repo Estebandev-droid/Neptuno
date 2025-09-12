@@ -107,7 +107,7 @@ export default function SubmissionsPage() {
         <div className="text-red-500 text-center py-8">Error: {(error as Error).message}</div>
       ) : (
         <div className="glass-card overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-styled">
             <table className="w-full">
               <thead className="bg-white/5">
                 <tr>

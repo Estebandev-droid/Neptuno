@@ -124,7 +124,7 @@ export default function EnrollmentsPage() {
         {isLoading && <div className="text-light/70">Cargando inscripciones...</div>}
         {error && <div className="text-red-400">Error al cargar inscripciones</div>}
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto scrollbar-styled">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="text-left text-light/70">

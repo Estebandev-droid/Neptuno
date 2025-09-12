@@ -72,7 +72,7 @@ function LayoutShell() {
         </div>
       </header>
 
-      <main className={`pt-[73px] transition-[margin] duration-300 ease-in-out ${collapsed ? 'md:ml-20 lg:ml-24' : 'md:ml-64 lg:ml-72'} min-h-[calc(100vh-73px)]`}>
+      <main className={`pt-[73px] transition-[margin] duration-300 ease-in-out ${collapsed ? 'md:ml-20 lg:ml-24' : 'md:ml-64 lg:ml-72'} min-h-[calc(100vh-73px)] scrollbar-styled`}>
         <div className="w-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto min-w-0">
           <Outlet />
         </div>

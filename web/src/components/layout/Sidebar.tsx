@@ -140,7 +140,7 @@ export default function Sidebar({
       <nav 
         className={`${
           collapsed ? 'p-2' : 'p-6'
-        } space-y-1 overflow-y-auto h-[calc(100%-73px)] scrollbar-thin scrollbar-thumb-primary/30 scrollbar-track-dark`}
+        } space-y-1 overflow-y-auto h-[calc(100%-73px)] scrollbar-thin scrollbar-thumb-primary/30 scrollbar-track-dark ${collapsed ? '' : 'scrollbar-styled'}`}
         onClick={() => onNavigate?.()}
       >
         {/* Panel Principal */}

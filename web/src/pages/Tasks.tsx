@@ -259,7 +259,7 @@ export default function TasksPage() {
       ) : (
         <>
           <div className="glass-card overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scrollbar-styled">
               <table className="w-full">
                 <thead className="bg-white/5">
                   <tr>
