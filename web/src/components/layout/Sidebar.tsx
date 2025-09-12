@@ -9,9 +9,10 @@ import {
   BookOpenIcon,
   UserPlusIcon,
   ClipboardDocumentListIcon,
+  DocumentTextIcon,
+  FolderIcon,
 } from '@heroicons/react/24/outline'
 import type React from 'react'
-import { DocumentTextIcon } from '@heroicons/react/24/outline'
 
 interface SidebarProps {
   className?: string
@@ -173,6 +174,12 @@ export default function Sidebar({
             to="/courses" 
             label="Cursos" 
             icon={BookOpenIcon} 
+            collapsed={collapsed} 
+          />
+          <NavItem 
+            to="/resources" 
+            label="Recursos" 
+            icon={FolderIcon} 
             collapsed={collapsed} 
           />
           <NavItem 

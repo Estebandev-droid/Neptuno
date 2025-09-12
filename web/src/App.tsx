@@ -14,6 +14,7 @@ import CourseDetailPage from './pages/CourseDetail'
 import EnrollmentsPage from './pages/Enrollments'
 import TasksPage from './pages/Tasks'
 import SubmissionsPage from './pages/Submissions'
+import ResourcesPage from './pages/Resources'
 
 const queryClient = new QueryClient()
 
@@ -54,6 +55,7 @@ export default function App() {
               <Route path="categories" element={<CategoriesPage />} />
               <Route path="courses" element={<CoursesPage />} />
               <Route path="courses/:id" element={<CourseDetailPage />} />
+              <Route path="resources" element={<ResourcesPage />} />
               <Route path="enrollments" element={<EnrollmentsPage />} />
               <Route path="tasks" element={<TasksPage />} />
               <Route path="submissions" element={<SubmissionsPage />} />
