@@ -15,6 +15,8 @@ import EnrollmentsPage from './pages/Enrollments'
 import TasksPage from './pages/Tasks'
 import SubmissionsPage from './pages/Submissions'
 import ResourcesPage from './pages/Resources'
+import TenantsPage from './pages/Tenants'
+import RelationshipsPage from './pages/Relationships'
 
 const queryClient = new QueryClient()
 
@@ -59,6 +61,8 @@ export default function App() {
               <Route path="enrollments" element={<EnrollmentsPage />} />
               <Route path="tasks" element={<TasksPage />} />
               <Route path="submissions" element={<SubmissionsPage />} />
+              <Route path="tenants" element={<TenantsPage />} />
+              <Route path="relationships" element={<RelationshipsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>

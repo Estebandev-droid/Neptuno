@@ -11,6 +11,8 @@ import {
   ClipboardDocumentListIcon,
   DocumentTextIcon,
   FolderIcon,
+  BuildingOfficeIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline'
 import type React from 'react'
 
@@ -202,6 +204,22 @@ export default function Sidebar({
           />
         </div>
 
+        {/* Gestión Multi-Tenant */}
+        <SectionTitle title="Gestión Multi-Tenant" collapsed={collapsed} />
+        <div className="space-y-1">
+          <NavItem 
+            to="/tenants" 
+            label="Tenants" 
+            icon={BuildingOfficeIcon} 
+            collapsed={collapsed} 
+          />
+          <NavItem 
+            to="/relationships" 
+            label="Relaciones Padre-Estudiante" 
+            icon={UserGroupIcon} 
+            collapsed={collapsed} 
+          />
+        </div>
 
       </nav>
     </aside>
