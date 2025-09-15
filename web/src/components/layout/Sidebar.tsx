@@ -13,6 +13,8 @@ import {
   FolderIcon,
   BuildingOfficeIcon,
   UserGroupIcon,
+  BellIcon,
+  AcademicCapIcon,
 } from '@heroicons/react/24/outline'
 import type React from 'react'
 
@@ -217,6 +219,23 @@ export default function Sidebar({
             to="/relationships" 
             label="Relaciones Padre-Estudiante" 
             icon={UserGroupIcon} 
+            collapsed={collapsed} 
+          />
+        </div>
+
+        {/* Comunicación y Certificación */}
+        <SectionTitle title="Comunicación y Certificación" collapsed={collapsed} />
+        <div className="space-y-1">
+          <NavItem 
+            to="/notifications" 
+            label="Notificaciones" 
+            icon={BellIcon} 
+            collapsed={collapsed} 
+          />
+          <NavItem 
+            to="/certificates" 
+            label="Certificados" 
+            icon={AcademicCapIcon} 
             collapsed={collapsed} 
           />
         </div>
