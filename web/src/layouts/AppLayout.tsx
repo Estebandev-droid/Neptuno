@@ -53,9 +53,11 @@ function LayoutShell() {
               <Bars3Icon className="h-5 w-5 sm:h-6 sm:w-6" />
             </button>
 
-            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-md glass-card border border-primary/30 grid place-items-center glow-effect flex-shrink-0">
-              <span className="text-primary font-bold text-xs sm:text-sm">N</span>
-            </div>
+            <img 
+              src="/logo.webp" 
+              alt="Neptuno Logo" 
+              className="h-9 w-9 sm:h-10 sm:w-10 object-contain drop-shadow-lg glow-effect flex-shrink-0"
+            />
             <div className="hidden sm:block min-w-0">
               <h1 className="text-base sm:text-lg font-bold text-light">Neptuno</h1>
               {user?.email && <p className="text-xs sm:text-sm text-light/70 truncate max-w-[150px] sm:max-w-[200px] lg:max-w-none">{user.email}</p>}

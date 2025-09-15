@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabaseClient'
-import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
+import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -81,14 +81,11 @@ export default function Login() {
       <div className="max-w-md w-full space-y-6 sm:space-y-8">
         <div className="text-center">
           <div className="relative w-fit mx-auto">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-              <div className="h-6 w-6 rounded-full bg-dark-secondary ring-2 ring-primary/30 grid place-items-center shadow-sm glow-effect">
-                <ShieldCheckIcon className="h-4 w-4 text-primary" />
-              </div>
-            </div>
-            <div className="h-16 w-16 rounded-2xl ring-4 ring-primary/20 gradient-primary grid place-items-center shadow-xl glow-effect">
-              <span className="text-dark font-extrabold text-2xl drop-shadow-sm">N</span>
-            </div>
+            <img 
+              src="/logo.webp" 
+              alt="Neptuno Logo" 
+              className="h-24 w-24 sm:h-28 sm:w-28 object-contain drop-shadow-xl glow-effect"
+            />
           </div>
            <h2 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-bold text-light">Neptuno</h2>
            <p className="mt-2 text-sm text-light/70">Sistema de gestión educativa</p>

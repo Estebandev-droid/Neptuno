@@ -117,11 +117,11 @@ export default function Sidebar({
               <ChevronDoubleRightIcon className="h-3 w-3 sm:h-4 sm:w-4" />
             </button>
           )}
-          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl glass-card border-2 border-primary/30 flex items-center justify-center glow-effect">
-            <span className="text-primary font-bold text-base sm:text-lg select-none">
-              N
-            </span>
-          </div>
+          <img 
+            src="/logo.webp" 
+            alt="Neptuno Logo" 
+            className="h-12 w-12 sm:h-14 sm:w-14 object-contain drop-shadow-lg glow-effect"
+          />
           {!collapsed && (
             <span className="font-bold text-dark text-lg sm:text-xl tracking-tight select-none">
               Neptuno
