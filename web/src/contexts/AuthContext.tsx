@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 import { AuthContext } from './AuthContextDefinition'
@@ -13,9 +13,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<ExtendedUser | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const initialLoadComplete = useRef(false)
+  const userProfileCache = useRef<Map<string, ExtendedUser>>(new Map())
 
   // Función para limpiar completamente el almacenamiento de auth
-  const clearAuthStorage = () => {
+  const clearAuthStorage = useCallback(() => {
     try {
       // Limpiar todas las claves relacionadas con Supabase
       const keysToRemove = []
@@ -34,13 +36,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           sessionStorage.removeItem(key)
         }
       }
+      
+      // Limpiar cache de perfiles
+      userProfileCache.current.clear()
     } catch (error) {
       console.error('Error clearing auth storage:', error)
     }
-  }
+  }, [])
 
-  // Función para obtener el perfil del usuario
-  const getUserProfile = async (authUser: User): Promise<ExtendedUser> => {
+  // Función para obtener el perfil del usuario con cache
+  const getUserProfile = useCallback(async (authUser: User): Promise<ExtendedUser> => {
+    // Verificar cache primero
+    const cached = userProfileCache.current.get(authUser.id)
+    if (cached) {
+      return cached
+    }
+
     try {
       const { data: profile } = await supabase
         .from('profiles')
@@ -48,7 +59,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .eq('id', authUser.id)
         .single()
 
-      return {
+      const extendedUser: ExtendedUser = {
         id: authUser.id,
         email: authUser.email,
         tenant_id: profile?.tenant_id || null,
@@ -57,9 +68,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         role: profile?.role || null,
         created_at: authUser.created_at
       }
+
+      // Guardar en cache
+      userProfileCache.current.set(authUser.id, extendedUser)
+      return extendedUser
     } catch {
       // Si no se puede obtener el perfil, devolver solo los datos básicos
-      return {
+      const basicUser: ExtendedUser = {
         id: authUser.id,
         email: authUser.email,
         tenant_id: null,
@@ -68,12 +83,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         role: null,
         created_at: authUser.created_at
       }
+      
+      // Guardar en cache también
+      userProfileCache.current.set(authUser.id, basicUser)
+      return basicUser
     }
-  }
+  }, [])
 
   useEffect(() => {
     let isMounted = true
-    let initialLoadComplete = false
     
     // Obtener sesión inicial
     const getInitialSession = async () => {
@@ -131,7 +149,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } finally {
         if (isMounted) {
-          initialLoadComplete = true
+          initialLoadComplete.current = true
           setLoading(false)
           console.log('Initial session load complete')
         }
@@ -146,7 +164,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (!isMounted) return
         
         // Solo procesar eventos después de la carga inicial
-        if (!initialLoadComplete) {
+        if (!initialLoadComplete.current) {
           console.log('Skipping auth state change - initial load not complete')
           return
         }
@@ -176,32 +194,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       isMounted = false
       subscription.unsubscribe()
     }
-  }, [])
+  }, [clearAuthStorage, getUserProfile])
 
   // Helper para sanear y normalizar el email
-  const cleanEmail = (email: string) =>
+  const cleanEmail = useCallback((email: string) =>
     email
       ?.replace(/[\u200B-\u200D\uFEFF]/g, '') // remueve zero-width chars
       .trim()
-      .toLowerCase()
+      .toLowerCase(), [])
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email: cleanEmail(email),
       password,
     })
     return { error }
-  }
+  }, [cleanEmail])
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({
       email: cleanEmail(email),
       password,
     })
     return { error }
-  }
+  }, [cleanEmail])
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       await supabase.auth.signOut()
     } catch (error) {
@@ -213,14 +231,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setSession(null)
       setUser(null)
     }
-  }
+  }, [clearAuthStorage])
 
-  const resetPassword = async (email: string) => {
+  const resetPassword = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail(email))
     return { error }
-  }
+  }, [cleanEmail])
 
-  const value = {
+  const value = useMemo(() => ({
     user,
     session,
     loading,
@@ -228,7 +246,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signUp,
     signOut,
     resetPassword,
-  }
+  }), [user, session, loading, signIn, signUp, signOut, resetPassword])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

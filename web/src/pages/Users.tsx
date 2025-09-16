@@ -1,13 +1,24 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
-import { listProfiles, assignRole, getUserRoles, createUser, removeProfile, revokeRole } from '../lib/usersService'
-import { listRoles } from '../lib/rolesService'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useUsers } from '../hooks/useUsers'
+import { useRoles } from '../hooks/useAppData'
+import { getUserRoles } from '../lib/usersService'
 import type { Profile } from '../types/users'
 
 export default function UsersPage() {
-  const qc = useQueryClient()
-  const { data: profiles, isLoading, error } = useQuery({ queryKey: ['profiles'], queryFn: listProfiles })
-  const { data: roles } = useQuery({ queryKey: ['roles'], queryFn: listRoles })
+  const { 
+    profiles, 
+    isLoading, 
+    error, 
+    createUser, 
+    assignRole, 
+    revokeRole, 
+    deleteUser,
+    isCreating
+  } = useUsers()
+  
+  const { roles } = useRoles()
+  
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
@@ -19,7 +30,8 @@ export default function UsersPage() {
   const [openCreate, setOpenCreate] = useState(false)
   const [formErrors, setFormErrors] = useState<{ email?: string; password?: string; roleName?: string }>({})
 
-  useEffect(() => {
+  // Establecer rol por defecto cuando se cargan los roles
+  useState(() => {
     if (roles && roles.length > 0) {
       const hasCurrent = roles.some(r => r.name === roleName)
       if (!hasCurrent) {
@@ -27,7 +39,7 @@ export default function UsersPage() {
         setRoleName(student?.name ?? roles[0].name)
       }
     }
-  }, [roles, roleName])
+  })
 
   const validate = () => {
     const errs: { email?: string; password?: string; roleName?: string } = {}
@@ -48,30 +60,58 @@ export default function UsersPage() {
     return Object.keys(errs).length === 0
   }
 
-  const signUpMut = useMutation({
-    mutationFn: () => createUser(email, password, fullName, roleName, phone, signatureUrl, photoUrl),
-    onSuccess: () => {
-      setEmail(''); setPassword(''); setFullName(''); setPhone(''); setSignatureUrl(''); setPhotoUrl(''); setRoleName('student')
+  const handleCreateUser = async () => {
+    if (!validate()) return
+    
+    try {
+      await createUser.mutateAsync({
+        email,
+        password,
+        fullName,
+        roleName,
+        phone,
+        signatureUrl,
+        photoUrl
+      })
+      
+      // Limpiar formulario
+      setEmail('')
+      setPassword('')
+      setFullName('')
+      setPhone('')
+      setSignatureUrl('')
+      setPhotoUrl('')
+      setRoleName('student')
       setOpenCreate(false)
       setFormErrors({})
-      qc.invalidateQueries({ queryKey: ['profiles'] })
+    } catch (error) {
+      console.error('Error creating user:', error)
     }
-  })
+  }
 
-  const assignMut = useMutation({
-    mutationFn: ({ userId, roleName }: { userId: string; roleName: string }) => assignRole(userId, roleName),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['profiles'] })
-  })
+  const handleAssignRole = async (userId: string, role: string) => {
+    try {
+      await assignRole.mutateAsync({ userId, roleName: role })
+    } catch (error) {
+      console.error('Error assigning role:', error)
+    }
+  }
 
-  const deleteMut = useMutation({
-    mutationFn: (userId: string) => removeProfile(userId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['profiles'] })
-  })
+  const handleRevokeRole = async (userId: string, role: string) => {
+    try {
+      await revokeRole.mutateAsync({ userId, roleName: role })
+    } catch (error) {
+      console.error('Error revoking role:', error)
+    }
+  }
 
-  const revokeMut = useMutation({
-    mutationFn: ({ userId, roleName }: { userId: string; roleName: string }) => revokeRole(userId, roleName),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['profiles'] })
-  })
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      await deleteUser.mutateAsync(userId)
+    } catch (error) {
+      console.error('Error deleting user:', error)
+    }
+  }
 
   // UI
   return (
@@ -114,19 +154,17 @@ export default function UsersPage() {
           <div className="grid gap-3 mt-3">
             <input className="glass-input px-4 py-2 rounded-lg" placeholder="URL de foto (opcional)" value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} />
           </div>
-          {signUpMut.error && (
+          {createUser.error && (
             <div className="text-red-400 text-sm mt-2">
-              {(signUpMut.error as Error).message || 'Error al crear usuario'}
+              {(createUser.error as Error).message || 'Error al crear usuario'}
             </div>
           )}
           <div className="flex gap-2 mt-4">
             <button
               className="glass-button px-4 py-2 rounded-lg disabled:opacity-50"
-              disabled={signUpMut.isPending}
-              onClick={() => {
-                if (validate()) signUpMut.mutate()
-              }}
-            >{signUpMut.isPending ? 'Creando...' : 'Guardar'}</button>
+              disabled={isCreating}
+              onClick={handleCreateUser}
+            >{isCreating ? 'Creando...' : 'Guardar'}</button>
             <button className="glass-nav-item px-4 py-2 rounded-lg" onClick={() => { setOpenCreate(false); setFormErrors({}) }}>Cancelar</button>
           </div>
         </div>
@@ -141,11 +179,11 @@ export default function UsersPage() {
             key={p.id} 
             profile={p} 
             roles={roles?.map(r => r.name) ?? []} 
-            onAssign={(role) => assignMut.mutate({ userId: p.id, roleName: role })}
-            onRevoke={(role) => revokeMut.mutate({ userId: p.id, roleName: role })}
+            onAssign={(role) => handleAssignRole(p.id, role)}
+            onRevoke={(role) => handleRevokeRole(p.id, role)}
             onDelete={() => {
               if (confirm(`¿Estás seguro de que quieres eliminar al usuario ${p.full_name || p.id}?`)) {
-                deleteMut.mutate(p.id)
+                handleDeleteUser(p.id)
               }
             }}
           />
@@ -155,14 +193,23 @@ export default function UsersPage() {
   )
 }
 
-function UserCard({ profile, roles, onAssign, onRevoke, onDelete }: { 
-  profile: Profile; 
-  roles: string[]; 
+function UserCard({ 
+  profile, 
+  roles, 
+  onAssign, 
+  onRevoke, 
+  onDelete 
+}: {
+  profile: Profile;
+  roles: string[];
   onAssign: (role: string) => void;
   onRevoke: (role: string) => void;
   onDelete: () => void;
 }) {
-  const { data: userRoles, refetch } = useQuery({ queryKey: ['user_roles', profile.id], queryFn: () => getUserRoles(profile.id) })
+  const { data: userRoles, refetch } = useQuery({ 
+    queryKey: ['user_roles', profile.id], 
+    queryFn: () => getUserRoles(profile.id) 
+  })
 
   return (
     <div className="glass-card rounded-xl p-4 flex flex-col gap-4">
@@ -192,7 +239,7 @@ function UserCard({ profile, roles, onAssign, onRevoke, onDelete }: {
         <div className="border-t border-light/10 pt-3">
           <p className="text-sm text-light/70 mb-2">Roles asignados:</p>
           <div className="flex flex-wrap gap-2">
-            {userRoles.map((r) => (
+            {userRoles.map((r: string) => (
               <div key={r} className="flex items-center gap-1 px-2 py-1 rounded-lg glass-nav-item text-sm">
                 <span>{r}</span>
                 <button 

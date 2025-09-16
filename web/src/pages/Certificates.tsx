@@ -186,26 +186,26 @@ const Certificates: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="py-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Certificados</h1>
-          <p className="text-gray-400 mt-1">
+          <h1 className="text-2xl font-bold text-light">Certificados</h1>
+          <p className="text-light/70 mt-1">
             Gestiona la emisión y verificación de certificados
           </p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setShowVerifyForm(true)}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+            className="glass-nav-item px-4 py-2 rounded-lg flex items-center gap-2"
           >
             <QrCode className="h-4 w-4" />
             Verificar
           </button>
           <button
             onClick={() => setShowIssueForm(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            className="glass-button px-4 py-2 rounded-lg flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
             Emitir Certificado
@@ -215,7 +215,7 @@ const Certificates: React.FC = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-500/20 border border-red-500 text-red-400 px-4 py-3 rounded-lg">
+        <div className="glass-card p-4 rounded-xl border border-red-500/30 text-red-400">
           {error}
           <button
             onClick={() => setError(null)}
@@ -227,24 +227,24 @@ const Certificates: React.FC = () => {
       )}
 
       {/* Tabs */}
-      <div className="border-b border-gray-700">
-        <nav className="flex space-x-8">
+      <div className="glass-card p-4 rounded-xl">
+        <nav className="flex space-x-8 border-b border-light/20 pb-2">
           <button
             onClick={() => setActiveTab('certificates')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
               activeTab === 'certificates'
                 ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-gray-400 hover:text-gray-300'
+                : 'border-transparent text-light/60 hover:text-light/80'
             }`}
           >
             Certificados
           </button>
           <button
             onClick={() => setActiveTab('templates')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
               activeTab === 'templates'
                 ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-gray-400 hover:text-gray-300'
+                : 'border-transparent text-light/60 hover:text-light/80'
             }`}
           >
             Templates
@@ -256,14 +256,15 @@ const Certificates: React.FC = () => {
       {activeTab === 'certificates' && (
         <div className="space-y-4">
           {/* Filters */}
-          <div className="bg-gray-800 p-4 rounded-lg">
+          <div className="glass-card p-4 rounded-xl">
+            <h4 className="font-medium mb-3 text-sm text-light/80">Filtros</h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Curso</label>
+                <label className="block text-sm font-medium text-light/80 mb-2">Curso</label>
                 <select
                   value={filters.course_id || ''}
                   onChange={(e) => setFilters(prev => ({ ...prev, course_id: e.target.value || undefined }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  className="glass-input w-full px-3 py-2 rounded-lg"
                 >
                   <option value="">Todos los cursos</option>
                   {courses.map(course => (
@@ -272,11 +273,11 @@ const Certificates: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Usuario</label>
+                <label className="block text-sm font-medium text-light/80 mb-2">Usuario</label>
                 <select
                   value={filters.student_id || ''}
                   onChange={(e) => setFilters(prev => ({ ...prev, student_id: e.target.value || undefined }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  className="glass-input w-full px-3 py-2 rounded-lg"
                 >
                   <option value="">Todos los usuarios</option>
                   {users.map(userData => (
@@ -285,13 +286,13 @@ const Certificates: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Firmado por</label>
+                <label className="block text-sm font-medium text-light/80 mb-2">Firmado por</label>
                 <input
                   type="text"
                   value={filters.signed_by || ''}
                   onChange={(e) => setFilters(prev => ({ ...prev, signed_by: e.target.value || undefined }))}
                   placeholder="Filtrar por firmante"
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  className="glass-input w-full px-3 py-2 rounded-lg"
                 />
               </div>
             </div>
@@ -300,56 +301,56 @@ const Certificates: React.FC = () => {
           {/* Certificates List */}
           <div className="grid gap-4">
             {certificates.length === 0 ? (
-              <div className="text-center py-12">
-                <Award className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-                <p className="text-gray-400">No hay certificados emitidos</p>
+              <div className="glass-card p-12 rounded-xl text-center">
+                <Award className="h-12 w-12 text-light/40 mx-auto mb-4" />
+                <p className="text-light/60">No hay certificados emitidos</p>
               </div>
             ) : (
               certificates.map((certificate) => (
-                <div key={certificate.id} className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+                <div key={certificate.id} className="glass-card p-6 rounded-xl">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3">
                         <Award className="h-6 w-6 text-yellow-500" />
-                        <h3 className="text-lg font-semibold text-white">
+                        <h3 className="text-lg font-semibold text-light">
                           {getCourseTitle(certificate.course_id)}
                         </h3>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                         <div>
-                          <span className="text-gray-400">Usuario: </span>
-                          <span className="text-white">{getUserName(certificate.student_id)}</span>
+                          <span className="text-light/60">Usuario: </span>
+                          <span className="text-light">{getUserName(certificate.student_id)}</span>
                         </div>
                         <div>
-                          <span className="text-gray-400">Firmado por: </span>
-                          <span className="text-white">{certificate.signed_by}</span>
+                          <span className="text-light/60">Firmado por: </span>
+                          <span className="text-light">{certificate.signed_by}</span>
                         </div>
                         <div>
-                          <span className="text-gray-400">Código QR: </span>
-                          <span className="text-white font-mono text-xs">{certificate.qr_code}</span>
+                          <span className="text-light/60">Código QR: </span>
+                          <span className="text-light font-mono text-xs">{certificate.qr_code}</span>
                         </div>
                         <div>
-                          <span className="text-gray-400">Emitido: </span>
-                          <span className="text-white">{new Date(certificate.issued_at).toLocaleDateString()}</span>
+                          <span className="text-light/60">Emitido: </span>
+                          <span className="text-light">{new Date(certificate.issued_at).toLocaleDateString()}</span>
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 ml-4">
                       <button
-                        className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
+                        className="glass-nav-item p-2 rounded transition-colors"
                         title="Ver certificado"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
                       <button
-                        className="p-2 text-gray-400 hover:text-green-400 transition-colors"
+                        className="glass-nav-item p-2 rounded transition-colors"
                         title="Descargar certificado"
                       >
                         <Download className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteCertificate(certificate.id)}
-                        className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                        className="glass-nav-item p-2 rounded transition-colors hover:text-red-400"
                         title="Eliminar certificado"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -369,7 +370,7 @@ const Certificates: React.FC = () => {
           <div className="flex justify-end">
             <button
               onClick={() => setShowTemplateForm(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              className="glass-button px-4 py-2 rounded-lg flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
               Nuevo Template
@@ -378,33 +379,33 @@ const Certificates: React.FC = () => {
 
           <div className="grid gap-4">
             {templates.length === 0 ? (
-              <div className="text-center py-12">
-                <FileText className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-                <p className="text-gray-400">No hay templates de certificados</p>
+              <div className="glass-card p-12 rounded-xl text-center">
+                <FileText className="h-12 w-12 text-light/40 mx-auto mb-4" />
+                <p className="text-light/60">No hay templates de certificados</p>
               </div>
             ) : (
               templates.map((template) => (
-                <div key={template.id} className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+                <div key={template.id} className="glass-card p-6 rounded-xl">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-white mb-2">{template.name}</h3>
-                      <p className="text-gray-400 text-sm mb-3">
+                      <h3 className="text-lg font-semibold text-light mb-2">{template.name}</h3>
+                      <p className="text-light/60 text-sm mb-3">
                         Creado: {new Date(template.created_at).toLocaleDateString()}
                       </p>
-                      <div className="bg-gray-900 p-3 rounded border text-xs text-gray-300 font-mono max-h-32 overflow-y-auto">
+                      <div className="glass-nav-item p-3 rounded text-xs text-light/70 font-mono max-h-32 overflow-y-auto">
                         {template.content.substring(0, 200)}...
                       </div>
                     </div>
                     <div className="flex items-center gap-2 ml-4">
                       <button
-                        className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
+                        className="glass-nav-item p-2 rounded transition-colors"
                         title="Editar template"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteTemplate(template.id)}
-                        className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                        className="glass-nav-item p-2 rounded transition-colors hover:text-red-400"
                         title="Eliminar template"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -421,23 +422,23 @@ const Certificates: React.FC = () => {
       {/* Issue Certificate Modal */}
       {showIssueForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+          <div className="glass-card rounded-xl p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-white">Emitir Certificado</h2>
+              <h2 className="text-xl font-bold text-light">Emitir Certificado</h2>
               <button
                 onClick={() => setShowIssueForm(false)}
-                className="text-gray-400 hover:text-white"
+                className="text-light/60 hover:text-light"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
             <form onSubmit={handleIssueCertificate} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Curso</label>
+                <label className="block text-sm font-medium text-light/80 mb-2">Curso</label>
                 <select
                   value={newCertificate.course_id}
                   onChange={(e) => setNewCertificate(prev => ({ ...prev, course_id: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  className="glass-input w-full px-3 py-2 rounded-lg"
                   required
                 >
                   <option value="">Seleccionar curso</option>
@@ -447,11 +448,11 @@ const Certificates: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Usuario</label>
+                <label className="block text-sm font-medium text-light/80 mb-2">Usuario</label>
                 <select
                   value={newCertificate.student_id}
                   onChange={(e) => setNewCertificate(prev => ({ ...prev, student_id: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  className="glass-input w-full px-3 py-2 rounded-lg"
                   required
                 >
                   <option value="">Seleccionar usuario</option>
@@ -461,11 +462,11 @@ const Certificates: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Template</label>
+                <label className="block text-sm font-medium text-light/80 mb-2">Template</label>
                 <select
                   value={newCertificate.template}
                   onChange={(e) => setNewCertificate(prev => ({ ...prev, template: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  className="glass-input w-full px-3 py-2 rounded-lg"
                   required
                 >
                   <option value="">Seleccionar template</option>
@@ -475,12 +476,12 @@ const Certificates: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Firmado por</label>
+                <label className="block text-sm font-medium text-light/80 mb-2">Firmado por</label>
                 <input
                   type="text"
                   value={newCertificate.signed_by}
                   onChange={(e) => setNewCertificate(prev => ({ ...prev, signed_by: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  className="glass-input w-full px-3 py-2 rounded-lg"
                   placeholder="Nombre del firmante"
                   required
                 />
@@ -488,14 +489,14 @@ const Certificates: React.FC = () => {
               <div className="flex gap-2 pt-4">
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="glass-button flex-1 px-4 py-2 rounded-lg"
                 >
                   Emitir Certificado
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowIssueForm(false)}
-                  className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                  className="glass-nav-item flex-1 px-4 py-2 rounded-lg"
                 >
                   Cancelar
                 </button>
@@ -508,16 +509,16 @@ const Certificates: React.FC = () => {
       {/* Verify Certificate Modal */}
       {showVerifyForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+          <div className="glass-card rounded-xl p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-white">Verificar Certificado</h2>
+              <h2 className="text-xl font-bold text-light">Verificar Certificado</h2>
               <button
                 onClick={() => {
                   setShowVerifyForm(false);
                   setVerificationResult(null);
                   setVerifyQrCode('');
                 }}
-                className="text-gray-400 hover:text-white"
+                className="text-light/60 hover:text-light"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -526,12 +527,12 @@ const Certificates: React.FC = () => {
             {!verificationResult ? (
               <form onSubmit={handleVerifyCertificate} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Código QR</label>
+                  <label className="block text-sm font-medium text-light/80 mb-2">Código QR</label>
                   <input
                     type="text"
                     value={verifyQrCode}
                     onChange={(e) => setVerifyQrCode(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    className="glass-input w-full px-3 py-2 rounded-lg"
                     placeholder="Ingresa el código QR del certificado"
                     required
                   />
@@ -539,7 +540,7 @@ const Certificates: React.FC = () => {
                 <div className="flex gap-2 pt-4">
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2"
+                    className="glass-button flex-1 px-4 py-2 rounded-lg flex items-center justify-center gap-2"
                   >
                     <Search className="h-4 w-4" />
                     Verificar
@@ -547,7 +548,7 @@ const Certificates: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowVerifyForm(false)}
-                    className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                    className="glass-nav-item flex-1 px-4 py-2 rounded-lg"
                   >
                     Cancelar
                   </button>
@@ -561,20 +562,20 @@ const Certificates: React.FC = () => {
                 </div>
                 <div className="space-y-3 text-sm">
                   <div>
-                    <span className="text-gray-400">Curso: </span>
-                    <span className="text-white">{getCourseTitle(verificationResult.course_id)}</span>
+                    <span className="text-light/60">Curso: </span>
+                    <span className="text-light">{getCourseTitle(verificationResult.course_id)}</span>
                   </div>
                   <div>
-                    <span className="text-gray-400">Usuario: </span>
-                    <span className="text-white">{getUserName(verificationResult.student_id)}</span>
+                    <span className="text-light/60">Usuario: </span>
+                    <span className="text-light">{getUserName(verificationResult.student_id)}</span>
                   </div>
                   <div>
-                    <span className="text-gray-400">Firmado por: </span>
-                    <span className="text-white">{verificationResult.signed_by}</span>
+                    <span className="text-light/60">Firmado por: </span>
+                    <span className="text-light">{verificationResult.signed_by}</span>
                   </div>
                   <div>
-                    <span className="text-gray-400">Emitido: </span>
-                    <span className="text-white">{new Date(verificationResult.issued_at).toLocaleDateString()}</span>
+                    <span className="text-light/60">Emitido: </span>
+                    <span className="text-light">{new Date(verificationResult.issued_at).toLocaleDateString()}</span>
                   </div>
                 </div>
                 <button
@@ -582,7 +583,7 @@ const Certificates: React.FC = () => {
                     setVerificationResult(null);
                     setVerifyQrCode('');
                   }}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mt-4"
+                  className="glass-button w-full px-4 py-2 rounded-lg mt-4"
                 >
                   Verificar Otro
                 </button>
@@ -595,34 +596,34 @@ const Certificates: React.FC = () => {
       {/* Create Template Modal */}
       {showTemplateForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl">
+          <div className="glass-card rounded-xl p-6 w-full max-w-2xl">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-white">Nuevo Template de Certificado</h2>
+              <h2 className="text-xl font-bold text-light">Nuevo Template de Certificado</h2>
               <button
                 onClick={() => setShowTemplateForm(false)}
-                className="text-gray-400 hover:text-white"
+                className="text-light/60 hover:text-light"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
             <form onSubmit={handleCreateTemplate} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Nombre del Template</label>
+                <label className="block text-sm font-medium text-light/80 mb-2">Nombre del Template</label>
                 <input
                   type="text"
                   value={newTemplate.name}
                   onChange={(e) => setNewTemplate(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  className="glass-input w-full px-3 py-2 rounded-lg"
                   placeholder="Ej: Certificado de Finalización"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Contenido HTML/CSS</label>
+                <label className="block text-sm font-medium text-light/80 mb-2">Contenido HTML/CSS</label>
                 <textarea
                   value={newTemplate.content}
                   onChange={(e) => setNewTemplate(prev => ({ ...prev, content: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white h-64 resize-none font-mono text-sm"
+                  className="glass-input w-full px-3 py-2 rounded-lg h-64 resize-none font-mono text-sm"
                   placeholder="Ingresa el HTML/CSS del template del certificado..."
                   required
                 />
@@ -630,14 +631,14 @@ const Certificates: React.FC = () => {
               <div className="flex gap-2 pt-4">
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="glass-button flex-1 px-4 py-2 rounded-lg"
                 >
                   Crear Template
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowTemplateForm(false)}
-                  className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                  className="glass-nav-item flex-1 px-4 py-2 rounded-lg"
                 >
                   Cancelar
                 </button>

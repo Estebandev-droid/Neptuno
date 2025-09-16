@@ -64,10 +64,14 @@ const Notifications: React.FC = () => {
     if (!user?.tenant_id) return;
 
     try {
-      await notificationsService.createNotification({
+      // Si no se especifica user_id, usar el ID del usuario actual
+      const notificationData = {
         ...newNotification,
-        tenant_id: user.tenant_id
-      });
+        tenant_id: user.tenant_id,
+        user_id: newNotification.user_id || user.id
+      };
+      
+      await notificationsService.createNotification(notificationData);
       setNewNotification({
         title: '',
         message: '',
@@ -136,22 +140,14 @@ const Notifications: React.FC = () => {
   const getNotificationIcon = (type: string) => {
     const iconClass = "h-5 w-5";
     switch (type) {
-      case 'success': return <Check className={`${iconClass} text-green-500`} />;
-      case 'warning': return <Bell className={`${iconClass} text-yellow-500`} />;
-      case 'error': return <X className={`${iconClass} text-red-500`} />;
+      case 'system': return <X className={`${iconClass} text-red-500`} />;
+      case 'academic': return <Check className={`${iconClass} text-green-500`} />;
+      case 'info': return <Bell className={`${iconClass} text-blue-500`} />;
       default: return <Bell className={`${iconClass} text-blue-500`} />;
     }
   };
 
-  const getNotificationBgColor = (type: string, isRead: boolean) => {
-    const opacity = isRead ? 'bg-opacity-20' : 'bg-opacity-40';
-    switch (type) {
-      case 'success': return `bg-green-500 ${opacity}`;
-      case 'warning': return `bg-yellow-500 ${opacity}`;
-      case 'error': return `bg-red-500 ${opacity}`;
-      default: return `bg-blue-500 ${opacity}`;
-    }
-  };
+
 
   if (loading) {
     return (
@@ -162,26 +158,26 @@ const Notifications: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="py-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Notificaciones</h1>
-          <p className="text-gray-400 mt-1">
+          <h1 className="text-2xl font-bold text-light">Notificaciones</h1>
+          <p className="text-light/70 mt-1">
             {unreadCount > 0 ? `${unreadCount} notificaciones sin leer` : 'Todas las notificaciones están leídas'}
           </p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2"
+            className="glass-nav-item px-4 py-2 rounded-lg flex items-center gap-2"
           >
             <Filter className="h-4 w-4" />
             Filtros
           </button>
           <button
             onClick={() => setShowCreateForm(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            className="glass-button px-4 py-2 rounded-lg flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
             Nueva Notificación
@@ -191,17 +187,17 @@ const Notifications: React.FC = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-500/20 border border-red-500 text-red-400 px-4 py-3 rounded-lg">
+        <div className="glass-card p-4 rounded-xl border border-red-500/30 text-red-400">
           {error}
         </div>
       )}
 
       {/* Filters */}
       {showFilters && (
-        <div className="bg-gray-800 p-4 rounded-lg space-y-4">
+        <div className="glass-card p-4 rounded-xl space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Estado</label>
+              <label className="block text-sm font-medium text-light/80 mb-2">Estado</label>
               <select
                 value={filters.is_read === undefined ? 'all' : filters.is_read ? 'read' : 'unread'}
                 onChange={(e) => {
@@ -211,7 +207,7 @@ const Notifications: React.FC = () => {
                     is_read: value === 'all' ? undefined : value === 'read'
                   }));
                 }}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                className="glass-input w-full px-3 py-2 rounded-lg"
               >
                 <option value="all">Todas</option>
                 <option value="unread">Sin leer</option>
@@ -219,18 +215,17 @@ const Notifications: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Tipo</label>
+              <label className="block text-sm font-medium text-light/80 mb-2">Tipo</label>
               <select
-                value={filters.type || ''}
-                onChange={(e) => setFilters(prev => ({ ...prev, type: (e.target.value as 'info' | 'success' | 'warning' | 'error') || undefined }))}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-              >
-                <option value="">Todos los tipos</option>
-                <option value="info">Información</option>
-                <option value="success">Éxito</option>
-                <option value="warning">Advertencia</option>
-                <option value="error">Error</option>
-              </select>
+              value={filters.type || ''}
+              onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value as 'system' | 'academic' | 'info' | undefined }))}
+              className="glass-input px-3 py-2 rounded-lg"
+            >
+              <option value="">Todos los tipos</option>
+              <option value="info">Información</option>
+              <option value="system">Sistema</option>
+              <option value="academic">Académico</option>
+            </select>
             </div>
           </div>
         </div>
@@ -238,21 +233,21 @@ const Notifications: React.FC = () => {
 
       {/* Bulk Actions */}
       {selectedNotifications.length > 0 && (
-        <div className="bg-gray-800 p-4 rounded-lg flex items-center justify-between">
-          <span className="text-gray-300">
+        <div className="glass-card p-4 rounded-xl flex items-center justify-between">
+          <span className="text-light/80">
             {selectedNotifications.length} notificación(es) seleccionada(s)
           </span>
           <div className="flex gap-2">
             <button
               onClick={handleMarkSelectedAsRead}
-              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1"
+              className="glass-button px-3 py-1 rounded flex items-center gap-1"
             >
               <CheckCheck className="h-4 w-4" />
               Marcar como leídas
             </button>
             <button
               onClick={() => setSelectedNotifications([])}
-              className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+              className="glass-nav-item px-3 py-1 rounded"
             >
               Cancelar
             </button>
@@ -265,7 +260,7 @@ const Notifications: React.FC = () => {
         <div className="flex justify-end">
           <button
             onClick={handleMarkAllAsRead}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+            className="glass-button px-4 py-2 rounded-lg flex items-center gap-2"
           >
             <CheckCheck className="h-4 w-4" />
             Marcar todas como leídas
@@ -276,19 +271,19 @@ const Notifications: React.FC = () => {
       {/* Notifications List */}
       <div className="space-y-3">
         {notifications.length === 0 ? (
-          <div className="text-center py-12">
-            <Bell className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-            <p className="text-gray-400">No hay notificaciones</p>
+          <div className="glass-card p-12 rounded-xl text-center">
+            <Bell className="h-12 w-12 text-light/50 mx-auto mb-4" />
+            <p className="text-light/70">No hay notificaciones</p>
           </div>
         ) : (
           notifications.map((notification) => (
             <div
               key={notification.id}
-              className={`p-4 rounded-lg border transition-all ${
+              className={`glass-card p-4 rounded-xl transition-all ${
                 notification.is_read 
-                  ? 'bg-gray-800/50 border-gray-700' 
-                  : 'bg-gray-800 border-gray-600'
-              } ${getNotificationBgColor(notification.type, notification.is_read)}`}
+                  ? 'opacity-70' 
+                  : 'border-l-4 border-l-primary'
+              }`}
             >
               <div className="flex items-start gap-3">
                 <input
@@ -304,16 +299,16 @@ const Notifications: React.FC = () => {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
                       <h3 className={`font-medium ${
-                        notification.is_read ? 'text-gray-300' : 'text-white'
+                        notification.is_read ? 'text-light/70' : 'text-light'
                       }`}>
                         {notification.title}
                       </h3>
                       <p className={`mt-1 text-sm ${
-                        notification.is_read ? 'text-gray-500' : 'text-gray-400'
+                        notification.is_read ? 'text-light/50' : 'text-light/80'
                       }`}>
                         {notification.message}
                       </p>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                      <div className="flex items-center gap-4 mt-2 text-xs text-light/60">
                         <span>Tipo: {notification.type}</span>
                         <span>{new Date(notification.created_at).toLocaleString()}</span>
                       </div>
@@ -322,7 +317,7 @@ const Notifications: React.FC = () => {
                       {!notification.is_read && (
                         <button
                           onClick={() => handleMarkAsRead(notification.id)}
-                          className="p-1 text-gray-400 hover:text-green-400 transition-colors"
+                          className="p-1 text-light/60 hover:text-primary transition-colors"
                           title="Marcar como leída"
                         >
                           <Check className="h-4 w-4" />
@@ -330,7 +325,7 @@ const Notifications: React.FC = () => {
                       )}
                       <button
                         onClick={() => handleDeleteNotification(notification.id)}
-                        className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                        className="p-1 text-light/60 hover:text-red-400 transition-colors"
                         title="Eliminar"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -346,71 +341,70 @@ const Notifications: React.FC = () => {
 
       {/* Create Notification Modal */}
       {showCreateForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="glass-card rounded-xl p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-white">Nueva Notificación</h2>
+              <h2 className="text-xl font-bold text-light">Nueva Notificación</h2>
               <button
                 onClick={() => setShowCreateForm(false)}
-                className="text-gray-400 hover:text-white"
+                className="text-light/60 hover:text-light transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
             <form onSubmit={handleCreateNotification} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Título</label>
+                <label className="block text-sm font-medium text-light/80 mb-2">Título</label>
                 <input
                   type="text"
                   value={newNotification.title}
                   onChange={(e) => setNewNotification(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  className="glass-input w-full px-3 py-2 rounded-lg"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Mensaje</label>
+                <label className="block text-sm font-medium text-light/80 mb-2">Mensaje</label>
                 <textarea
                   value={newNotification.message}
                   onChange={(e) => setNewNotification(prev => ({ ...prev, message: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white h-24 resize-none"
+                  className="glass-input w-full px-3 py-2 rounded-lg h-24 resize-none"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Tipo</label>
+                <label className="block text-sm font-medium text-light/80 mb-2">Tipo</label>
                 <select
                   value={newNotification.type}
-                  onChange={(e) => setNewNotification(prev => ({ ...prev, type: e.target.value as 'info' | 'success' | 'warning' | 'error' }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  onChange={(e) => setNewNotification(prev => ({ ...prev, type: e.target.value as 'system' | 'academic' | 'info' }))}
+                  className="glass-input w-full px-3 py-2 rounded-lg"
                 >
                   <option value="info">Información</option>
-                  <option value="success">Éxito</option>
-                  <option value="warning">Advertencia</option>
-                  <option value="error">Error</option>
+                  <option value="system">Sistema</option>
+                  <option value="academic">Académico</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">ID de Usuario</label>
+                <label className="block text-sm font-medium text-light/80 mb-2">ID de Usuario</label>
                 <input
                   type="text"
                   value={newNotification.user_id}
                   onChange={(e) => setNewNotification(prev => ({ ...prev, user_id: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  className="glass-input w-full px-3 py-2 rounded-lg"
                   placeholder="Dejar vacío para notificación general"
                 />
               </div>
               <div className="flex gap-2 pt-4">
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="glass-button flex-1 px-4 py-2 rounded-lg"
                 >
                   Crear Notificación
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
-                  className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                  className="glass-nav-item flex-1 px-4 py-2 rounded-lg"
                 >
                   Cancelar
                 </button>

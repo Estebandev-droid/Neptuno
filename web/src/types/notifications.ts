@@ -2,7 +2,7 @@ export interface Notification {
   id: string;
   title: string;
   message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
+  type: 'system' | 'academic' | 'info';
   is_read: boolean;
   user_id: string;
   tenant_id: string;
@@ -13,7 +13,7 @@ export interface Notification {
 export interface CreateNotificationRequest {
   title: string;
   message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
+  type: 'system' | 'academic' | 'info';
   user_id: string;
   tenant_id: string;
 }
@@ -26,5 +26,5 @@ export interface NotificationFilters {
   user_id?: string;
   tenant_id?: string;
   is_read?: boolean;
-  type?: 'info' | 'success' | 'warning' | 'error';
+  type?: 'system' | 'academic' | 'info';
 }

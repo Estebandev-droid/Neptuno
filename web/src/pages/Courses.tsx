@@ -1,17 +1,11 @@
-import { useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useCourses } from '../hooks/useCourses'
+import { useActiveCategories, useInstructors } from '../hooks/useAppData'
 import type { Course } from '../types/courses'
-import { listCourses, createCourse, updateCourse, setCourseActive, deleteCourse, uploadCourseCover, type PagedResult } from '../lib/coursesService'
-import { listCategories } from '../lib/categoriesService'
-import type { Category } from '../types/categories'
-import { listProfiles } from '../lib/usersService'
-import type { Profile } from '../types/users'
 import { Link } from 'react-router-dom'
 
 export default function CoursesPage() {
-  const qc = useQueryClient()
-
-  // Query cursos
+  // Estados de filtros y paginación
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const pageSize = 10
@@ -19,23 +13,34 @@ export default function CoursesPage() {
   const [filterCategory, setFilterCategory] = useState<string>('')
   const [filterInstructor, setFilterInstructor] = useState<string>('')
 
-  const { data, isLoading, isFetching, error } = useQuery<PagedResult<Course>, Error, PagedResult<Course>>({
-    queryKey: ['courses', { search, page, pageSize, onlyActive, filterCategory, filterInstructor }],
-    queryFn: () => listCourses({ search, page, pageSize, onlyActive, categoryId: filterCategory || null, instructorId: filterInstructor || null }),
+  // Hooks optimizados
+  const {
+    courses,
+    total,
+    totalPages,
+    isLoading,
+    isFetching,
+    error,
+    createCourse,
+    updateCourse,
+    toggleActive,
+    deleteCourse,
+    isCreating,
+    isUpdating,
+    isDeleting
+  } = useCourses({
+    search,
+    page,
+    pageSize,
+    onlyActive,
+    categoryId: filterCategory || null,
+    instructorId: filterInstructor || null
   })
 
-  const courses = useMemo(() => data?.data ?? [], [data])
-  const total = data?.count ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const { categories } = useActiveCategories()
+  const { instructors } = useInstructors()
 
-  // Query auxiliares para filtros y formularios
-  const { data: categoriesData } = useQuery({ queryKey: ['categories', { for: 'courses' }], queryFn: () => listCategories({ page: 1, pageSize: 100, onlyActive: true }) })
-  const categories = useMemo(() => (categoriesData?.data ?? []) as Category[], [categoriesData])
-
-  const { data: profiles } = useQuery({ queryKey: ['profiles', { for: 'courses' }], queryFn: listProfiles })
-  const instructors = useMemo(() => (profiles ?? []) as Profile[], [profiles])
-
-  // Crear curso
+  // Estados del formulario de creación
   const [newTitle, setNewTitle] = useState('')
   const [newDescription, setNewDescription] = useState('')
   const [newCategoryId, setNewCategoryId] = useState('')
@@ -44,80 +49,92 @@ export default function CoursesPage() {
   const [newCoverFile, setNewCoverFile] = useState<File | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
 
-  const createMut = useMutation({
-    mutationFn: () => createCourse({ title: newTitle, description: newDescription || null, category_id: newCategoryId || null, instructor_id: newInstructorId || null, cover_image: newCoverImage || null }),
-    onSuccess: async (id: string) => {
-      try {
-        if (newCoverFile) {
-          const url = await uploadCourseCover(newCoverFile, id)
-          await updateCourse(id, { cover_image: url })
-        }
-      } catch (e) {
-        setFormError(e instanceof Error ? e.message : 'Error al subir portada')
-      }
+  // Función para crear curso
+  const handleCreateCourse = async () => {
+    try {
+      setFormError(null)
+      await createCourse.mutateAsync({
+        courseData: {
+          title: newTitle,
+          description: newDescription || null,
+          category_id: newCategoryId || null,
+          instructor_id: newInstructorId || null,
+          cover_image: newCoverImage || null
+        },
+        coverFile: newCoverFile
+      })
+
+      // Limpiar formulario
       setNewTitle('')
       setNewDescription('')
       setNewCategoryId('')
       setNewInstructorId('')
       setNewCoverImage('')
       setNewCoverFile(null)
-      setFormError(null)
-      qc.invalidateQueries({ queryKey: ['courses'] })
-    },
-    onError: (err: unknown) => {
-      setFormError(err instanceof Error ? err.message : 'Error al crear curso')
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Error al crear curso')
     }
-  })
+  }
 
-  // Edición inline
+  // Estados de edición inline
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editing, setEditing] = useState<{ title: string; description?: string; category_id?: string | null; instructor_id?: string | null; cover_image?: string | null }>({ title: '' })
   const [editingCoverFile, setEditingCoverFile] = useState<Record<string, File | null>>({})
   const [rowError, setRowError] = useState<Record<string, string | null>>({})
 
-  const saveMut = useMutation({
-    mutationFn: async () => {
-      if (!editingId) throw new Error('Sin ID')
+  // Función para guardar edición
+  const handleSaveEdit = async () => {
+    if (!editingId) return
+    
+    try {
       const title = editing.title?.trim()
-      if (!title || title.length < 3) throw new Error('El título es obligatorio (mínimo 3 caracteres)')
-      const file = editingId ? editingCoverFile[editingId] : null
+      if (!title || title.length < 3) {
+        throw new Error('El título es obligatorio (mínimo 3 caracteres)')
+      }
+
       const changes = { ...editing }
-      if (file) {
-        const url = await uploadCourseCover(file, editingId)
-        changes.cover_image = url
-      }
-      return updateCourse(editingId, changes)
-    },
-    onSuccess: () => {
-      if (editingId) {
-        setEditingCoverFile(prev => {
-          const copy = { ...prev }
-          if (editingId in copy) {
-            delete copy[editingId]
-          }
-          return copy
-        })
-      }
+      const file = editingCoverFile[editingId]
+      
+      await updateCourse.mutateAsync({
+        courseId: editingId,
+        updates: changes,
+        coverFile: file
+      })
+
+      // Limpiar estado de edición
+      setEditingCoverFile(prev => {
+        const copy = { ...prev }
+        if (editingId in copy) {
+          delete copy[editingId]
+        }
+        return copy
+      })
       setEditingId(null)
       setRowError({})
-      qc.invalidateQueries({ queryKey: ['courses'] })
-    },
-    onError: (err: unknown) => {
-      if (!editingId) return
-      setRowError(prev => ({ ...prev, [editingId]: err instanceof Error ? err.message : 'Error al guardar' }))
+    } catch (error) {
+      setRowError(prev => ({ 
+        ...prev, 
+        [editingId]: error instanceof Error ? error.message : 'Error al guardar' 
+      }))
     }
-  })
+  }
 
-  const toggleMut = useMutation({
-    mutationFn: ({ id, active }: { id: string; active: boolean }) => setCourseActive(id, active),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['courses'] })
-  })
+  // Funciones para toggle y delete
+  const handleToggleActive = async (id: string, active: boolean) => {
+    try {
+      await toggleActive.mutateAsync({ courseId: id, active })
+    } catch (error) {
+      console.error('Error al cambiar estado:', error)
+    }
+  }
 
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => deleteCourse(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['courses'] }),
-    onError: (err: unknown) => alert(err instanceof Error ? err.message : 'Error al eliminar')
-  })
+  const handleDeleteCourse = async (id: string) => {
+    try {
+      await deleteCourse.mutateAsync(id)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Error al eliminar')
+    }
+  }
 
   const handleCreate = () => {
     const title = newTitle.trim()
@@ -125,7 +142,7 @@ export default function CoursesPage() {
       setFormError('El título es obligatorio (mínimo 3 caracteres)')
       return
     }
-    createMut.mutate()
+    handleCreateCourse()
   }
 
   const startEdit = (c: Course) => {
@@ -135,7 +152,7 @@ export default function CoursesPage() {
 
   const handleDelete = (id: string) => {
     if (confirm('¿Seguro que deseas eliminar este curso? Esta acción no se puede deshacer.')) {
-      deleteMut.mutate(id)
+      handleDeleteCourse(id)
     }
   }
 
@@ -179,8 +196,8 @@ export default function CoursesPage() {
         </div>
         {formError && <p className="text-red-400 text-sm mt-3">{formError}</p>}
         <div className="mt-4 flex justify-end">
-          <button className="glass-button px-4 py-2 rounded-lg w-full sm:w-auto" onClick={handleCreate} disabled={createMut.isPending}>
-            {createMut.isPending ? 'Creando...' : 'Crear'}
+          <button className="glass-button px-4 py-2 rounded-lg w-full sm:w-auto" onClick={handleCreate} disabled={isCreating}>
+            {isCreating ? 'Creando...' : 'Crear'}
           </button>
         </div>
       </div>
@@ -237,7 +254,7 @@ export default function CoursesPage() {
                     <input type="file" accept="image/*" className="glass-input px-3 py-2 rounded-lg w-full text-sm" onChange={(e) => setEditingCoverFile(prev => ({ ...prev, [c.id]: e.target.files?.[0] ?? null }))} />
                     {rowError[c.id] && <p className="text-red-400 text-xs">{rowError[c.id]}</p>}
                     <div className="flex flex-col sm:flex-row gap-2">
-                      <button className="glass-button px-3 py-2 rounded-lg text-sm flex-1" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>Guardar</button>
+                      <button className="glass-button px-3 py-2 rounded-lg text-sm flex-1" onClick={handleSaveEdit} disabled={isUpdating}>Guardar</button>
                       <button className="glass-nav-item px-3 py-2 rounded-lg text-sm flex-1" onClick={() => { setEditingId(null); setRowError(prev => ({ ...prev, [c.id]: null })) }}>Cancelar</button>
                     </div>
                   </div>
@@ -261,8 +278,8 @@ export default function CoursesPage() {
                         <button className="glass-nav-item px-3 py-2 rounded-lg text-sm flex-1" onClick={() => startEdit(c)}>Editar</button>
                       </div>
                       <div className="flex gap-2">
-                        <button className="glass-nav-item px-3 py-2 rounded-lg text-sm flex-1" onClick={() => handleDelete(c.id)} disabled={deleteMut.isPending}>Eliminar</button>
-                        <button className={`px-3 py-2 rounded-lg text-sm flex-1 ${c.is_active ? 'glass-nav-item' : 'glass-button'}`} onClick={() => toggleMut.mutate({ id: c.id, active: !c.is_active })} disabled={toggleMut.isPending}>
+                        <button className="glass-nav-item px-3 py-2 rounded-lg text-sm flex-1" onClick={() => handleDelete(c.id)} disabled={isDeleting}>Eliminar</button>
+                        <button className={`px-3 py-2 rounded-lg text-sm flex-1 ${c.is_active ? 'glass-nav-item' : 'glass-button'}`} onClick={() => handleToggleActive(c.id, !c.is_active)} disabled={isUpdating}>
                           {c.is_active ? 'Desactivar' : 'Activar'}
                         </button>
                       </div>

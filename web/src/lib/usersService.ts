@@ -147,6 +147,27 @@ export async function getUserRoles(userId: string): Promise<string[]> {
   return (data as { role_name: string }[]).map(r => r.role_name)
 }
 
+export async function updateProfile(userId: string, updates: Partial<Profile>): Promise<void> {
+  console.log('Actualizando perfil:', userId, updates)
+  
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId)
+    
+    if (error) {
+      console.error('Error al actualizar perfil:', error)
+      throw new Error(`Error al actualizar perfil: ${error.message}`)
+    }
+    
+    console.log('Perfil actualizado exitosamente')
+  } catch (error) {
+    console.error('Error en updateProfile:', error)
+    throw error
+  }
+}
+
 export async function removeProfile(userId: string): Promise<void> {
   console.log('Eliminando usuario:', userId)
   
