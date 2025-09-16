@@ -4,12 +4,14 @@ import {
   listEvaluations, 
   deleteEvaluation,
   createEvaluation,
+  createEvaluationQuestion,
   type Evaluation,
   type EvaluationWithInstructor
 } from '../lib/evaluationsService'
 import { useCourses } from '../hooks/useCourses'
 import { useAuth } from '../hooks/useAuth'
 import { useTenant } from '../hooks/useTenant'
+import QuestionForm, { type Question } from '../components/QuestionForm'
 
 interface EvaluationWithStats extends EvaluationWithInstructor {
   student_count: number
@@ -31,6 +33,7 @@ export default function Evaluations() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [formErrors, setFormErrors] = useState<string[]>([])
+  const [questions, setQuestions] = useState<Question[]>([])
   
   // Form state for creating evaluation
   const [formData, setFormData] = useState({
@@ -90,10 +93,34 @@ export default function Evaluations() {
   const handleCreateEvaluation = async () => {
     const errors: string[] = []
     
-    if (!user?.id) errors.push('Usuario no autenticado')
+    // Asegurar que el usuario esté autenticado (narrowing para TypeScript)
+    if (!user) {
+      setFormErrors(['Usuario no autenticado'])
+      return
+    }
+
     if (!formData.title.trim()) errors.push('El título es requerido')
     if (!formData.course_id) errors.push('Debe seleccionar un curso')
-    if (!user?.tenant_id) errors.push('Error de configuración del usuario')
+    // Validación de tenant se hace más abajo con selectedTenant
+    if (questions.length === 0) errors.push('Debe agregar al menos una pregunta')
+    
+    // Validar preguntas
+    questions.forEach((question, index) => {
+      if (!question.question_text.trim()) {
+        errors.push(`La pregunta ${index + 1} debe tener texto`)
+      }
+      if (question.question_type === 'multiple_choice') {
+        if (!question.options?.some(opt => opt.trim())) {
+          errors.push(`La pregunta ${index + 1} debe tener al menos una opción`)
+        }
+        if (!question.correct_answer?.trim()) {
+          errors.push(`La pregunta ${index + 1} debe tener una respuesta correcta seleccionada`)
+        }
+      }
+      if (question.question_type === 'true_false' && !question.correct_answer) {
+        errors.push(`La pregunta ${index + 1} debe tener una respuesta correcta seleccionada`)
+      }
+    })
     
     if (errors.length > 0) {
       setFormErrors(errors)
@@ -110,15 +137,50 @@ export default function Evaluations() {
         return
       }
 
-      await createEvaluation({
+      // Crear la evaluación
+      const evaluation = await createEvaluation({
         ...formData,
-        tenant_id: selectedTenant.tenant_id,
-        instructor_id: user?.id || '',
+        tenant_id: selectedTenant.tenant?.id || selectedTenant.tenant_id,
+        instructor_id: user.id,
         description: formData.description || undefined,
         instructions: formData.instructions || undefined,
         start_date: formData.start_date || undefined,
         end_date: formData.end_date || undefined
       })
+
+      // Crear las preguntas
+      for (let i = 0; i < questions.length; i++) {
+        const question = questions[i]
+        const filteredOptions = question.options?.filter(opt => opt.trim())
+        const formattedOptions = filteredOptions?.length ? 
+          filteredOptions.map((text) => ({ id: crypto.randomUUID(), text })) : 
+          undefined
+
+        // Mapear la respuesta correcta al id de la opción en caso de multiple_choice
+        let correctAnswer: string | undefined = undefined
+        if (question.question_type === 'multiple_choice') {
+          if (formattedOptions && filteredOptions && question.correct_answer) {
+            const idx = filteredOptions.findIndex((t) => t === question.correct_answer)
+            if (idx >= 0) {
+              correctAnswer = formattedOptions[idx].id
+            }
+          }
+        } else {
+          correctAnswer = question.correct_answer || undefined
+        }
+
+        await createEvaluationQuestion({
+          evaluation_id: evaluation.id,
+          question_text: question.question_text,
+          question_type: question.question_type,
+          options: formattedOptions,
+          correct_answer: correctAnswer,
+          points: question.points,
+          order_index: i,
+          is_required: true
+        })
+      }
+
       await loadEvaluations()
       setShowCreateModal(false)
       setFormErrors([])
@@ -139,8 +201,10 @@ export default function Evaluations() {
         max_score: 100,
         is_published: false
       })
+      setQuestions([])
     } catch (error) {
       console.error('Error creating evaluation:', error)
+      setFormErrors(['Error al crear la evaluación. Por favor, intenta de nuevo.'])
     } finally {
       setIsCreating(false)
     }
@@ -449,13 +513,14 @@ export default function Evaluations() {
       {/* Create Evaluation Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="glass-card rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="glass-card rounded-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-light">Nueva Evaluación</h3>
               <button
                 onClick={() => {
                   setShowCreateModal(false)
                   setFormErrors([])
+                  setQuestions([])
                 }}
                 className="text-light/60 hover:text-light transition-colors"
               >
@@ -644,10 +709,21 @@ export default function Evaluations() {
                 </label>
               </div>
               
+              {/* Questions Section */}
+              <div className="mt-6 pt-6 border-t border-white/20">
+                <QuestionForm 
+                  questions={questions} 
+                  onQuestionsChange={setQuestions} 
+                />
+              </div>
+              
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => {
+                    setShowCreateModal(false)
+                    setQuestions([])
+                  }}
                   className="px-4 py-2 text-light/60 hover:text-light transition-colors"
                 >
                   Cancelar

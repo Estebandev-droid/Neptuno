@@ -10,5 +10,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
-// Cliente de Supabase usando el esquema público por defecto
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Cliente de Supabase usando el esquema público por defecto, con refresh y persistencia de sesión habilitados
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+})

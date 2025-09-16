@@ -8,7 +8,7 @@ interface TenantProviderProps {
 }
 
 export function TenantProvider({ children }: TenantProviderProps) {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [selectedTenant, setSelectedTenant] = useState<Membership | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -45,13 +45,21 @@ export function TenantProvider({ children }: TenantProviderProps) {
           setSelectedTenant(userMemberships[0] || null)
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error al cargar memberships:', err)
-      setError(err instanceof Error ? err.message : 'Error desconocido')
+      const code = (err as { code?: string } | null | undefined)?.code
+      const message = (err as { message?: string } | null | undefined)?.message
+      if (code === 'PGRST303' || (typeof message === 'string' && /JWT expired/i.test(message))) {
+        setError('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.')
+        // Cerrar sesión para limpiar storage de auth
+        try { await signOut() } catch (signOutErr) { console.warn('Error durante signOut tras JWT expirado:', signOutErr) }
+      } else {
+        setError(err instanceof Error ? err.message : 'Error desconocido')
+      }
     } finally {
       setIsLoading(false)
     }
-  }, [user?.id, selectedTenant])
+  }, [user?.id, selectedTenant, signOut])
 
   useEffect(() => {
     refreshMemberships()

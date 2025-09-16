@@ -184,7 +184,8 @@ export default function TakeEvaluation({ evaluationId, onComplete }: TakeEvaluat
                   onChange={(e) => {
                     handleAnswerChange(question.id, {
                       selectedOptions: [e.target.value],
-                      answerText: option.text
+                      // Enviar el ID de la opción como answerText para coincidir con correct_answer
+                      answerText: option.id
                     })
                   }}
                   className="w-4 h-4 text-blue-600"

@@ -101,20 +101,20 @@ export async function listEvaluations(courseId?: string): Promise<EvaluationWith
   if (data && data.length > 0) {
     const instructorIds = data
       .filter(evaluation => evaluation.instructor_id)
-      .map(evaluation => evaluation.instructor_id)
-    
+      .map(evaluation => evaluation.instructor_id as string)
+
     if (instructorIds.length > 0) {
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('user_id, full_name')
-        .in('user_id', instructorIds)
-      
+        .select('id, full_name')
+        .in('id', instructorIds)
+
       // Agregar información del instructor a cada evaluación
       const evaluationsWithInstructors = data.map(evaluation => ({
         ...evaluation,
-        instructor_name: profiles?.find(p => p.user_id === evaluation.instructor_id)?.full_name || null
+        instructor_name: profiles?.find(p => p.id === evaluation.instructor_id)?.full_name || null
       }))
-      
+
       return evaluationsWithInstructors as EvaluationWithInstructor[]
      }
    }
@@ -127,8 +127,7 @@ export async function getEvaluation(id: string) {
     .from('evaluations')
     .select(`
       *,
-      courses(title),
-      profiles!evaluations_instructor_id_fkey(full_name)
+      courses(title)
     `)
     .eq('id', id)
     .single()
