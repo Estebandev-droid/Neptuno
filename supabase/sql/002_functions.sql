@@ -49,6 +49,12 @@ create trigger trg_resources_updated_at
 before update on public.resources
 for each row execute function public.set_updated_at();
 
+-- Memberships
+drop trigger if exists trg_memberships_updated_at on public.memberships;
+create trigger trg_memberships_updated_at
+before update on public.memberships
+for each row execute function public.set_updated_at();
+
 -- Tasks
 drop trigger if exists trg_tasks_updated_at on public.tasks;
 create trigger trg_tasks_updated_at
@@ -617,6 +623,88 @@ begin
   insert into public.user_roles(user_id, role_id)
   values (p_user, v_role_id)
   on conflict (user_id, role_id) do nothing;
+end; $$;
+
+-- =============================================
+-- FUNCIONES PARA GESTIÓN DE MEMBERSHIPS
+-- =============================================
+
+-- Crear o actualizar membership
+create or replace function public.create_membership(
+  p_user_id uuid,
+  p_tenant_id uuid,
+  p_role text default 'student',
+  p_permissions jsonb default '{}'
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_membership_id uuid;
+begin
+  insert into public.memberships (user_id, tenant_id, role, permissions)
+  values (p_user_id, p_tenant_id, p_role, p_permissions)
+  on conflict (user_id, tenant_id) 
+  do update set 
+    role = excluded.role,
+    permissions = excluded.permissions,
+    is_active = true,
+    updated_at = now()
+  returning id into v_membership_id;
+  
+  return v_membership_id;
+end; $$;
+
+-- Obtener memberships de un usuario
+create or replace function public.get_user_memberships(p_user_id uuid)
+returns table (
+  membership_id uuid,
+  tenant_id uuid,
+  tenant_name text,
+  role text,
+  permissions jsonb,
+  is_active boolean,
+  joined_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return query
+  select 
+    m.id,
+    m.tenant_id,
+    t.name,
+    m.role,
+    m.permissions,
+    m.is_active,
+    m.joined_at
+  from public.memberships m
+  join public.tenants t on t.id = m.tenant_id
+  where m.user_id = p_user_id
+    and m.is_active = true
+  order by m.joined_at desc;
+end; $$;
+
+-- Desactivar membership
+create or replace function public.deactivate_membership(
+  p_user_id uuid,
+  p_tenant_id uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.memberships
+  set is_active = false, updated_at = now()
+  where user_id = p_user_id and tenant_id = p_tenant_id;
+  
+  return found;
 end; $$;
 
 commit;

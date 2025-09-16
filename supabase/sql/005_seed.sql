@@ -123,4 +123,51 @@ BEGIN
   END IF;
 END $$;
 
+-- 6) Crear memberships para usuarios existentes
+-- Esto asigna memberships a usuarios que ya tienen profiles con tenant_id
+DO $$
+DECLARE
+  v_profile RECORD;
+  v_tenant_id uuid;
+BEGIN
+  -- Migrar usuarios existentes con tenant_id a memberships
+  FOR v_profile IN 
+    SELECT id, tenant_id, role 
+    FROM public.profiles 
+    WHERE tenant_id IS NOT NULL
+  LOOP
+    -- Crear membership si no existe
+    INSERT INTO public.memberships (user_id, tenant_id, role, is_active)
+    VALUES (
+      v_profile.id, 
+      v_profile.tenant_id, 
+      CASE 
+        WHEN v_profile.role = 'super_admin' THEN 'owner'
+        WHEN v_profile.role = 'tenant_admin' THEN 'admin'
+        WHEN v_profile.role = 'teacher' THEN 'teacher'
+        WHEN v_profile.role = 'student' THEN 'student'
+        WHEN v_profile.role = 'parent' THEN 'parent'
+        ELSE 'student'
+      END,
+      true
+    )
+    ON CONFLICT (user_id, tenant_id) DO NOTHING;
+  END LOOP;
+  
+  -- Crear membership para el superadmin en el tenant demo
+  SELECT id INTO v_tenant_id FROM public.tenants WHERE domain = 'demo.neptuno.edu' LIMIT 1;
+  
+  IF v_tenant_id IS NOT NULL THEN
+    INSERT INTO public.memberships (user_id, tenant_id, role, is_active)
+    SELECT 
+      p.id,
+      v_tenant_id,
+      'owner',
+      true
+    FROM public.profiles p
+    WHERE p.role = 'super_admin'
+    ON CONFLICT (user_id, tenant_id) DO NOTHING;
+  END IF;
+END $$;
+
 COMMIT;

@@ -152,6 +152,9 @@ drop table if exists public.tenants cascade;
 drop table if exists public.audit_log cascade;
 drop table if exists public.platform_admins cascade;
 
+-- Eliminar tabla de memberships del modelo multi-tenant
+drop table if exists public.memberships cascade;
+
 -- =============================================
 -- ELIMINAR ÍNDICES PERSONALIZADOS
 -- =============================================

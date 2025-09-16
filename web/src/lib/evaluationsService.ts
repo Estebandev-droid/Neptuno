@@ -69,17 +69,20 @@ export interface EvaluationWithQuestions extends Evaluation {
   questions: EvaluationQuestion[]
 }
 
+export interface EvaluationWithInstructor extends Evaluation {
+  instructor_name: string | null
+}
+
 // =============================================
 // CRUD OPERATIONS FOR EVALUATIONS
 // =============================================
 
-export async function listEvaluations(courseId?: string) {
+export async function listEvaluations(courseId?: string): Promise<EvaluationWithInstructor[]> {
   let query = supabase
     .from('evaluations')
     .select(`
       *,
-      courses(title),
-      profiles!evaluations_instructor_id_fkey(full_name)
+      courses(title)
     `)
     .order('created_at', { ascending: false })
 
@@ -94,7 +97,29 @@ export async function listEvaluations(courseId?: string) {
     throw error
   }
 
-  return data as Evaluation[]
+  // Obtener información de los instructores por separado
+  if (data && data.length > 0) {
+    const instructorIds = data
+      .filter(evaluation => evaluation.instructor_id)
+      .map(evaluation => evaluation.instructor_id)
+    
+    if (instructorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .in('user_id', instructorIds)
+      
+      // Agregar información del instructor a cada evaluación
+      const evaluationsWithInstructors = data.map(evaluation => ({
+        ...evaluation,
+        instructor_name: profiles?.find(p => p.user_id === evaluation.instructor_id)?.full_name || null
+      }))
+      
+      return evaluationsWithInstructors as EvaluationWithInstructor[]
+     }
+   }
+ 
+    return data.map(evaluation => ({ ...evaluation, instructor_name: null })) as EvaluationWithInstructor[]
 }
 
 export async function getEvaluation(id: string) {

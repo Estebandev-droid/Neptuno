@@ -43,6 +43,7 @@ alter table public.certificates enable row level security;
 alter table public.notifications enable row level security;
 alter table public.roles enable row level security;
 alter table public.user_roles enable row level security;
+alter table public.memberships enable row level security;
 
 -- ==========================================================
 -- 3. HELPERS DE ROLES Y ADMIN
@@ -71,6 +72,37 @@ returns boolean language sql stable security definer set search_path = public as
     select 1 from public.user_roles ur
     join public.roles r on r.id = ur.role_id
     where ur.user_id = p_user and r.name = p_role_name
+  )
+$$;
+
+-- =============================================
+-- FUNCIONES HELPER PARA MEMBERSHIPS
+-- =============================================
+create or replace function public.has_membership_role(p_tenant_id uuid, p_role_name text, p_user uuid default auth.uid())
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists(
+    select 1 from public.memberships m
+    where m.user_id = p_user 
+      and m.tenant_id = p_tenant_id 
+      and m.role = p_role_name 
+      and m.is_active = true
+  )
+$$;
+
+create or replace function public.get_user_tenants(p_user uuid default auth.uid())
+returns table(tenant_id uuid, role text) language sql stable security definer set search_path = public as $$
+  select m.tenant_id, m.role
+  from public.memberships m
+  where m.user_id = p_user and m.is_active = true
+$$;
+
+create or replace function public.is_tenant_member(p_tenant_id uuid, p_user uuid default auth.uid())
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists(
+    select 1 from public.memberships m
+    where m.user_id = p_user 
+      and m.tenant_id = p_tenant_id 
+      and m.is_active = true
   )
 $$;
 
@@ -131,6 +163,16 @@ for select using (auth.uid() = student_id or is_platform_admin() or has_role('te
 create policy submissions_write on public.submissions
 for all using (auth.uid() = student_id or is_platform_admin() or has_role('teacher'))
 with check (auth.uid() = student_id or is_platform_admin() or has_role('teacher'));
+
+-- Memberships: usuarios pueden ver sus propias membresías; admins pueden ver todas
+create policy memberships_select on public.memberships
+for select using (auth.uid() = user_id or is_platform_admin());
+create policy memberships_insert on public.memberships
+for insert with check (is_platform_admin() or has_membership_role(tenant_id, 'owner', auth.uid()) or has_membership_role(tenant_id, 'admin', auth.uid()));
+create policy memberships_update on public.memberships
+for update using (is_platform_admin() or has_membership_role(tenant_id, 'owner', auth.uid()) or has_membership_role(tenant_id, 'admin', auth.uid()));
+create policy memberships_delete on public.memberships
+for delete using (is_platform_admin() or has_membership_role(tenant_id, 'owner', auth.uid()));
 
 -- Evaluaciones
 create policy evaluations_select on public.evaluations

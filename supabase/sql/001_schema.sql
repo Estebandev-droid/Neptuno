@@ -24,8 +24,8 @@ create table public.tenants (
 -- =============================================
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  tenant_id uuid references public.tenants(id) on delete set null,
-  email text unique not null,
+  tenant_id uuid references public.tenants(id) on delete set null, -- Campo legacy, se mantendrá por compatibilidad
+  email text not null, -- Sin unique constraint - el email único está en auth.users
   full_name text not null,
   avatar_url text, -- Imagen de perfil
   signature_url text, -- Firma digital escaneada o generada
@@ -293,6 +293,22 @@ create table if not exists public.roles (
   created_at timestamptz default now()
 );
 
+-- =============================================
+-- TABLA MEMBERSHIPS: Modelo multi-tenant moderno
+-- =============================================
+create table public.memberships (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  tenant_id uuid not null references public.tenants(id) on delete cascade,
+  role text check (role in ('owner','admin','teacher','student','parent','viewer')) not null default 'student',
+  permissions jsonb default '{}', -- Permisos específicos adicionales
+  is_active boolean default true,
+  joined_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(user_id, tenant_id) -- Un usuario puede tener solo una membresía por tenant
+);
+
+-- Tabla legacy de user_roles (se mantiene por compatibilidad)
 create table if not exists public.user_roles (
   user_id uuid not null references auth.users(id) on delete cascade,
   role_id uuid not null references public.roles(id) on delete cascade,
@@ -318,6 +334,12 @@ create table if not exists public.audit_log (
 -- Índices para evaluations
 create index if not exists idx_evaluations_tenant_id on public.evaluations(tenant_id);
 create index if not exists idx_evaluations_course_id on public.evaluations(course_id);
+
+-- Índices para memberships (modelo multi-tenant)
+create index if not exists idx_memberships_user_id on public.memberships(user_id);
+create index if not exists idx_memberships_tenant_id on public.memberships(tenant_id);
+create index if not exists idx_memberships_user_tenant on public.memberships(user_id, tenant_id);
+create index if not exists idx_memberships_active on public.memberships(is_active) where is_active = true;
 create index if not exists idx_evaluations_instructor_id on public.evaluations(instructor_id);
 
 -- Índices para evaluation_questions

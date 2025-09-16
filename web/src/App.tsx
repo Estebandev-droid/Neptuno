@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { type ReactNode } from 'react'
 import { AuthProvider } from './contexts/AuthContext'
+import { TenantProvider } from './contexts/TenantContext'
 import { useAuth } from './hooks/useAuth'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -48,7 +49,8 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BrowserRouter>
+        <TenantProvider>
+          <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
             {/* Área protegida con layout persistente */}
@@ -72,7 +74,8 @@ export default function App() {
             </Route>
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
-        </BrowserRouter>
+          </BrowserRouter>
+        </TenantProvider>
       </AuthProvider>
     </QueryClientProvider>
   )
