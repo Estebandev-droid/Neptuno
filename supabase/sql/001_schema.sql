@@ -142,10 +142,20 @@ create table public.evaluations (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid references public.tenants(id) on delete cascade,
   course_id uuid not null references public.courses(id) on delete cascade,
+  instructor_id uuid references auth.users(id) on delete set null,
   title text not null,
   description text,
-  max_score numeric(5,2) default 100,
+  max_score numeric(5,2) default 100.00,
   is_published boolean default false,
+  evaluation_type text check (evaluation_type in ('quiz','exam','project','assignment')) default 'quiz',
+  duration_minutes integer default 60,
+  instructions text,
+  start_date timestamptz,
+  end_date timestamptz,
+  attempts_allowed integer default 1,
+  show_results boolean default true,
+  randomize_questions boolean default false,
+  passing_score numeric(5,2) default 60.00,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -209,6 +219,70 @@ create table public.notifications (
 );
 
 -- =============================================
+-- TABLAS DEL SISTEMA DE EVALUACIONES
+-- =============================================
+
+-- Tabla: Preguntas de evaluación
+create table public.evaluation_questions (
+  id uuid primary key default gen_random_uuid(),
+  evaluation_id uuid not null references public.evaluations(id) on delete cascade,
+  question_text text not null,
+  question_type text check (question_type in ('multiple_choice','true_false','essay','short_answer')) not null default 'multiple_choice',
+  options jsonb, -- Para opciones múltiples: [{"id": "a", "text": "Opción A"}, {"id": "b", "text": "Opción B"}]
+  correct_answer text, -- Para multiple_choice: "a", para true_false: "true"/"false", para essay: null
+  points numeric(5,2) not null default 1.00,
+  explanation text, -- Explicación de la respuesta correcta
+  order_index integer not null default 1,
+  is_required boolean default true,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- Tabla: Respuestas de estudiantes
+create table public.student_answers (
+  id uuid primary key default gen_random_uuid(),
+  evaluation_id uuid not null references public.evaluations(id) on delete cascade,
+  question_id uuid not null references public.evaluation_questions(id) on delete cascade,
+  student_id uuid not null references auth.users(id) on delete cascade,
+  answer_text text, -- Respuesta del estudiante
+  is_correct boolean, -- null para preguntas tipo essay que requieren calificación manual
+  points_earned numeric(5,2) default 0.00,
+  feedback text, -- Retroalimentación del profesor
+  answered_at timestamptz default now(),
+  graded_at timestamptz,
+  graded_by uuid references auth.users(id) on delete set null,
+  unique(evaluation_id, question_id, student_id)
+);
+
+-- Tabla: Intentos de evaluación
+create table public.evaluation_attempts (
+  id uuid primary key default gen_random_uuid(),
+  evaluation_id uuid not null references public.evaluations(id) on delete cascade,
+  student_id uuid not null references auth.users(id) on delete cascade,
+  attempt_number integer not null default 1,
+  started_at timestamptz default now(),
+  submitted_at timestamptz,
+  total_score numeric(5,2) default 0.00,
+  max_possible_score numeric(5,2) default 0.00,
+  percentage numeric(5,2) default 0.00,
+  status text check (status in ('in_progress','submitted','graded','expired')) default 'in_progress',
+  time_spent_minutes integer default 0,
+  unique(evaluation_id, student_id, attempt_number)
+);
+
+-- Tabla: Plantillas de certificados
+create table public.certificate_templates (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid references public.tenants(id) on delete cascade,
+  name text not null,
+  description text,
+  template_data jsonb not null,
+  is_active boolean default true,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- =============================================
 -- TABLAS DE ROLES Y AUDITORÍA
 -- =============================================
 create table if not exists public.roles (
@@ -236,6 +310,31 @@ create table if not exists public.audit_log (
   old_values jsonb,
   new_values jsonb
 );
+
+-- =============================================
+-- ÍNDICES PARA OPTIMIZACIÓN
+-- =============================================
+
+-- Índices para evaluations
+create index if not exists idx_evaluations_tenant_id on public.evaluations(tenant_id);
+create index if not exists idx_evaluations_course_id on public.evaluations(course_id);
+create index if not exists idx_evaluations_instructor_id on public.evaluations(instructor_id);
+
+-- Índices para evaluation_questions
+create index if not exists idx_evaluation_questions_evaluation_id on public.evaluation_questions(evaluation_id);
+create index if not exists idx_evaluation_questions_order on public.evaluation_questions(evaluation_id, order_index);
+
+-- Índices para student_answers
+create index if not exists idx_student_answers_evaluation_student on public.student_answers(evaluation_id, student_id);
+create index if not exists idx_student_answers_question on public.student_answers(question_id);
+
+-- Índices para evaluation_attempts
+create index if not exists idx_evaluation_attempts_student on public.evaluation_attempts(student_id);
+create index if not exists idx_evaluation_attempts_evaluation on public.evaluation_attempts(evaluation_id);
+
+-- Índices para certificate_templates
+create index if not exists idx_certificate_templates_tenant_id on public.certificate_templates(tenant_id);
+create index if not exists idx_certificate_templates_active on public.certificate_templates(is_active);
 
 -- =============================================
 -- FUNCIONES Y TRIGGERS
@@ -275,6 +374,14 @@ for each row execute function public.set_updated_at();
 
 create trigger trg_grades_updated_at
 before update on public.grades
+for each row execute function public.set_updated_at();
+
+create trigger trg_evaluation_questions_updated_at
+before update on public.evaluation_questions
+for each row execute function public.set_updated_at();
+
+create trigger trg_certificate_templates_updated_at
+before update on public.certificate_templates
 for each row execute function public.set_updated_at();
 
 -- =============================================

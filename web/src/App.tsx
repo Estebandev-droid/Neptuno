@@ -19,6 +19,7 @@ import TenantsPage from './pages/Tenants'
 import RelationshipsPage from './pages/Relationships'
 import NotificationsPage from './pages/Notifications'
 import CertificatesPage from './pages/Certificates'
+import EvaluationsPage from './pages/Evaluations'
 
 const queryClient = new QueryClient()
 
@@ -67,6 +68,7 @@ export default function App() {
               <Route path="relationships" element={<RelationshipsPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="certificates" element={<CertificatesPage />} />
+              <Route path="evaluations" element={<EvaluationsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>

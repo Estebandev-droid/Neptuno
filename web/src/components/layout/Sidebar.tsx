@@ -15,6 +15,7 @@ import {
   UserGroupIcon,
   BellIcon,
   AcademicCapIcon,
+  ClipboardDocumentCheckIcon,
 } from '@heroicons/react/24/outline'
 import type React from 'react'
 
@@ -190,6 +191,12 @@ export default function Sidebar({
             to="/tasks" 
             label="Tareas" 
             icon={ClipboardDocumentListIcon} 
+            collapsed={collapsed} 
+          />
+          <NavItem 
+            to="/evaluations" 
+            label="Evaluaciones" 
+            icon={ClipboardDocumentCheckIcon} 
             collapsed={collapsed} 
           />
           <NavItem 
