@@ -16,6 +16,7 @@ import {
   BellIcon,
   AcademicCapIcon,
   ClipboardDocumentCheckIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline'
 import type React from 'react'
 
@@ -209,6 +210,12 @@ export default function Sidebar({
             to="/enrollments" 
             label="Inscripciones" 
             icon={UserPlusIcon} 
+            collapsed={collapsed} 
+          />
+          <NavItem 
+            to="/profile" 
+            label="Mi Perfil" 
+            icon={UserIcon} 
             collapsed={collapsed} 
           />
         </div>

@@ -1,12 +1,14 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Clock, AlertCircle, CheckCircle, ArrowRight, ArrowLeft, Flag } from 'lucide-react'
 import {
   getEvaluationWithQuestions,
   startEvaluationAttempt,
   submitStudentAnswer,
   autoGradeEvaluation,
+  getStudentAnswers,
   type EvaluationWithQuestions,
-  type EvaluationQuestion
+  type EvaluationQuestion,
+  type StudentAnswer
 } from '../lib/evaluationsService'
 import { useAuth } from '../hooks/useAuth'
 
@@ -32,6 +34,12 @@ export default function TakeEvaluation({ evaluationId, onComplete }: TakeEvaluat
   const [submitting, setSubmitting] = useState(false)
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false)
   const [flaggedQuestions, setFlaggedQuestions] = useState<Set<string>>(new Set())
+  // Results modal & autosave state
+  const [showResults, setShowResults] = useState(false)
+  const [gradingSummary, setGradingSummary] = useState<{ total_score: number; max_score: number; percentage: number } | null>(null)
+  const [gradedAnswers, setGradedAnswers] = useState<StudentAnswer[]>([])
+  const autoSaveTimers = useRef<Record<string, number | undefined>>({})
+  const countdownRef = useRef<number | null>(null)
 
   // Load evaluation and start attempt
   useEffect(() => {
@@ -62,6 +70,20 @@ export default function TakeEvaluation({ evaluationId, onComplete }: TakeEvaluat
     initializeEvaluation()
   }, [evaluationId, user])
 
+  // Cleanup autosave timers
+  useEffect(() => {
+    const timersMap = autoSaveTimers.current;
+    return () => {
+      Object.values(timersMap).forEach((t) => {
+        if (t !== undefined) window.clearTimeout(t)
+      });
+      if (countdownRef.current !== null) {
+        window.clearInterval(countdownRef.current)
+        countdownRef.current = null
+      }
+    };
+  }, [])
+
   const handleSubmitAnswer = useCallback(async (questionId: string) => {
     if (!user || !attemptId) return
     
@@ -81,6 +103,27 @@ export default function TakeEvaluation({ evaluationId, onComplete }: TakeEvaluat
     }
   }, [user, attemptId, answers, evaluationId])
 
+  // Debounced auto-save per question
+  const scheduleAutoSave = useCallback((questionId: string, answerObj: Answer) => {
+    if (!user || !attemptId) return
+    const existing = autoSaveTimers.current[questionId]
+    if (existing) window.clearTimeout(existing)
+
+    autoSaveTimers.current[questionId] = window.setTimeout(async () => {
+      try {
+        await submitStudentAnswer({
+          evaluation_id: evaluationId,
+          question_id: questionId,
+          student_id: user.id,
+          answer_text: answerObj.answerText,
+          points_earned: 0
+        })
+      } catch (error) {
+        console.error('Error autosaving answer:', error)
+      }
+    }, 500)
+  }, [user, attemptId, evaluationId])
+
   const handleSubmitEvaluation = useCallback(async () => {
     if (!attemptId || submitting) return
     
@@ -95,6 +138,15 @@ export default function TakeEvaluation({ evaluationId, onComplete }: TakeEvaluat
       
       // Auto-grade evaluation
       const result = await autoGradeEvaluation(attemptId)
+
+      // Fetch graded answers and show results
+      if (user) {
+        const graded = await getStudentAnswers(evaluationId, user.id)
+        setGradedAnswers(graded)
+      }
+      setGradingSummary(result)
+      setShowConfirmSubmit(false)
+      setShowResults(true)
       
       onComplete(result.total_score, result.max_score)
     } catch (error) {
@@ -102,7 +154,7 @@ export default function TakeEvaluation({ evaluationId, onComplete }: TakeEvaluat
     } finally {
       setSubmitting(false)
     }
-  }, [attemptId, submitting, answers, handleSubmitAnswer, onComplete])
+  }, [attemptId, submitting, answers, handleSubmitAnswer, onComplete, evaluationId, user])
 
   const handleAutoSubmit = useCallback(async () => {
     if (!attemptId || submitting) return
@@ -113,7 +165,12 @@ export default function TakeEvaluation({ evaluationId, onComplete }: TakeEvaluat
   useEffect(() => {
     if (timeRemaining <= 0 || !evaluation) return
 
-    const timer = setInterval(() => {
+    // Clear any existing interval before creating a new one
+    if (countdownRef.current !== null) {
+      window.clearInterval(countdownRef.current)
+    }
+
+    const timerId = window.setInterval(() => {
       setTimeRemaining(prev => {
         if (prev <= 1) {
           handleAutoSubmit()
@@ -123,18 +180,24 @@ export default function TakeEvaluation({ evaluationId, onComplete }: TakeEvaluat
       })
     }, 1000)
 
-    return () => clearInterval(timer)
+    countdownRef.current = timerId
+
+    return () => {
+      window.clearInterval(timerId)
+    }
   }, [timeRemaining, evaluation, handleAutoSubmit])
 
   const handleAnswerChange = (questionId: string, answerData: Partial<Answer>) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionId]: {
-        ...prev[questionId],
+    setAnswers(prev => {
+      const nextAnswer: Answer = {
+        ...(prev[questionId] || { questionId, answerText: '', selectedOptions: [] }),
         questionId,
         ...answerData
       }
-    }))
+      const next = { ...prev, [questionId]: nextAnswer }
+      scheduleAutoSave(questionId, nextAnswer)
+      return next
+    })
   }
 
   const toggleQuestionFlag = (questionId: string) => {
@@ -441,6 +504,87 @@ export default function TakeEvaluation({ evaluationId, onComplete }: TakeEvaluat
                 className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50"
               >
                 {submitting ? 'Entregando...' : 'Entregar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Results Modal */}
+      {showResults && gradingSummary && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Resultados de la evaluación</h3>
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-blue-50 p-4 rounded-lg text-center">
+                <div className="text-sm text-blue-600">Puntaje</div>
+                <div className="text-2xl font-bold text-blue-700">{gradingSummary.total_score} / {gradingSummary.max_score}</div>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg text-center">
+                <div className="text-sm text-green-600">Porcentaje</div>
+                <div className="text-2xl font-bold text-green-700">{Math.round(gradingSummary.percentage)}%</div>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg text-center">
+                <div className="text-sm text-gray-600">Preguntas</div>
+                <div className="text-2xl font-bold text-gray-700">{evaluation.questions.length}</div>
+              </div>
+            </div>
+
+            {evaluation.show_results && (
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-gray-700">Detalle por pregunta</h4>
+                <div className="space-y-3">
+                  {evaluation.questions.map((q, idx) => {
+                    const ans = gradedAnswers.find(a => a.question_id === q.id)
+                    const status = ans?.is_correct === true
+                      ? 'correct'
+                      : ans?.is_correct === false
+                      ? 'incorrect'
+                      : 'pending'
+                    const statusText = status === 'correct' ? 'Correcto' : status === 'incorrect' ? 'Incorrecto' : 'Pendiente'
+                    const statusColor = status === 'correct' ? 'text-green-700 bg-green-50' : status === 'incorrect' ? 'text-red-700 bg-red-50' : 'text-gray-700 bg-gray-50'
+                    let studentText = ans?.answer_text || '-'
+                    if (q.question_type === 'multiple_choice' && q.options && ans?.answer_text) {
+                      const opt = q.options.find(o => o.id === ans.answer_text || o.text === ans.answer_text)
+                      if (opt) studentText = opt.text
+                    }
+                    const correctText = (q.question_type === 'multiple_choice' && q.options)
+                      ? (q.options.find(o => o.id === q.correct_answer)?.text || '-')
+                      : (q.question_type === 'true_false')
+                      ? (q.correct_answer === 'true' ? 'Verdadero' : q.correct_answer === 'false' ? 'Falso' : '-')
+                      : '-'
+
+                    return (
+                      <div key={q.id} className="border rounded-lg p-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="text-xs text-gray-500 mb-1">Pregunta {idx + 1} • {q.points} {q.points === 1 ? 'punto' : 'puntos'}</div>
+                            <div className="font-medium text-gray-900 mb-2">{q.question_text}</div>
+                            <div className="text-sm text-gray-700"><span className="font-medium">Tu respuesta:</span> {studentText}</div>
+                            {(status !== 'pending') && (
+                              <div className="text-sm text-gray-700"><span className="font-medium">Respuesta correcta:</span> {correctText}</div>
+                            )}
+                            {q.explanation && (
+                              <div className="text-sm text-gray-600 mt-1">{q.explanation}</div>
+                            )}
+                          </div>
+                          <div className={`ml-4 px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}>
+                            {statusText}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowResults(false)}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+              >
+                Cerrar
               </button>
             </div>
           </div>

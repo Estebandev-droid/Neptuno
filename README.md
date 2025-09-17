@@ -218,3 +218,79 @@ Para soporte técnico o consultas comerciales:
 ---
 
 **Neptuno** - Transformando la educación a través de la tecnología 🚀
+
+## Pendientes Sprint 1 (Auth, Perfiles y Multi-tenant)
+
+Estado actual verificado
+- [x] Modelo multi-tenant en DB: tabla `tenants` con campo `branding` (JSONB) que incluye `logo_url` y `primary_color`; RLS y helpers de roles presentes.
+- [x] Trigger `handle_new_user` crea `profiles` al registrarse.
+- [x] Buckets de storage existentes: `course-covers` (público), `resource-files` (privado), `tenant-logos` (público) y referencia a `signatures` en el seed; revisar duplicidad/ubicación final en `004_storage.sql`.
+- [x] Frontend: `AuthContext` con `signUp`/`signIn`, página `Login`, rutas protegidas, `TenantContext` usa `getUserMemberships` y existen helpers en `membershipsService`. Aún no hay página de Signup ni UI de memberships/invitaciones.
+
+Pendiente por implementar
+1) Autenticación: Registro de usuarios (Signup UI)
+- Crear página `/signup` con formulario email + password usando `useAuth.signUp` (wrap de `supabase.auth.signUp`).
+- Añadir ruta en `App.tsx`: `<Route path="/signup" element={<Signup />} />` y enlace desde Login.
+- Flujo: tras signUp, mostrar confirmación y redirigir a `/login`.
+- Criterio de aceptación: se puede registrar, se crea `profile` vía trigger, sesión no inicia hasta confirmar email (según configuración de Supabase), manejo de errores de email en uso, etc.
+
+2) Perfil: "Mi Perfil"
+- Página `/profile` para ver/editar `full_name` y manejar avatar y firma.
+- Storage: definir bucket `avatars` (lectura pública) y confirmar `signatures` (privado) con sus políticas.
+- Implementar upload de avatar/firma y `updateProfile` en `usersService`.
+- Mostrar firma en certificados emitidos usando Signed URL.
+
+3) Memberships: UI de administración
+- Listar memberships del tenant (solo `owner`/`admin`).
+- Crear y desactivar memberships (asignar usuario ↔ tenant con rol).
+- Reutilizar `lib/membershipsService`; añadir vistas y flujos en páginas.
+
+4) Invitaciones por correo
+- Definir tabla `invitations` (si no existe): `id`, `email`, `tenant_id`, `role`, `token`, `expires_at`, `accepted_at`.
+- RPC para crear invitación y enviar email (temporalmente copiar enlace al portapapeles).
+- Flujo de aceptación en `/invite/accept?token=...` que crea membership al usuario autenticado o tras completar Signup.
+
+5) RPCs faltantes (roles y utilidades dev)
+- `role_rename`, `role_delete`, `user_role_revoke`, `user_roles_list`.
+- `create_dev_user`, `delete_dev_user` (solo entorno de desarrollo).
+- Implementar en `002_functions.sql` y probar desde `web/src/lib/rolesService.ts` y `web/src/lib/usersService.ts`.
+
+6) Storage y recursos privados
+- Asegurar que `resource-files` es privado; vistas/descargas deben usar Signed URLs con expiración.
+- Revisar previsualización en componentes como `FilePreview` y página `Resources`.
+
+7) Branding por tenant en frontend
+- Leer `tenants.branding` al seleccionar tenant.
+- Aplicar `logo_url` y `primary_color` en `AppLayout`, `Login` y pantallas clave.
+
+8) QA y DX
+- Estados de error y loading consistentes.
+- Mensajería/validaciones UX en formularios de Auth y Perfil.
+- Scripts de semilla/limpieza no deben desactivar RLS en entornos productivos.
+
+Rutas nuevas a crear
+- GET `/signup` (página)
+- GET `/profile` (página)
+- GET `/invite/accept?token=...` (página)
+
+Referencias internas (ubicación actual)
+- Auth y rutas: `web/src/contexts/AuthContext.tsx`, `web/src/App.tsx`, `web/src/pages/Login.tsx`
+- Multi-tenant: `web/src/contexts/TenantContext.tsx`, `web/src/lib/membershipsService.ts`
+- Usuarios: `web/src/lib/usersService.ts`
+- SQL: `supabase/sql/001_schema.sql`, `supabase/sql/002_functions.sql`, `supabase/sql/003_policies.sql`, `supabase/sql/004_storage.sql`
+
+Checklist ejecutable
+- [ ] Signup UI y ruta
+- [ ] Enlace desde Login
+- [ ] Página Mi Perfil (editar nombre)
+- [ ] Buckets `avatars` y `signatures` + políticas
+- [ ] Upload de avatar y firma
+- [ ] Signed URL para resources privados
+- [ ] UI de Memberships (listar/crear/desactivar)
+- [ ] Invitaciones (tabla, RPC, flujo)
+- [ ] RPCs de roles/dev completadas
+- [ ] Branding por tenant aplicado en UI
+
+Notas
+- Evitar duplicar buckets entre `001_schema.sql` y `004_storage.sql`; centralizar la creación/configuración en `004_storage.sql`.
+- Documentar helpers de roles y permisos en `002_functions.sql` y `003_policies.sql`.

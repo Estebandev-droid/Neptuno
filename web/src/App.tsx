@@ -21,6 +21,8 @@ import RelationshipsPage from './pages/Relationships'
 import NotificationsPage from './pages/Notifications'
 import CertificatesPage from './pages/Certificates'
 import EvaluationsPage from './pages/Evaluations'
+import Signup from './pages/Signup'
+import ProfilePage from './pages/Profile'
 
 const queryClient = new QueryClient()
 
@@ -53,6 +55,7 @@ export default function App() {
           <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
             {/* Área protegida con layout persistente */}
             <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route index element={<Navigate to="dashboard" replace />} />
@@ -71,6 +74,7 @@ export default function App() {
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="certificates" element={<CertificatesPage />} />
               <Route path="evaluations" element={<EvaluationsPage />} />
+              <Route path="profile" element={<ProfilePage />} />
             </Route>
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>

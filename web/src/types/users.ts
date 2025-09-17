@@ -4,7 +4,6 @@ export interface Profile {
   full_name?: string | null
   name?: string | null // Alias for full_name
   avatar_url?: string | null
-  phone?: string | null
   role?: string | null
   tenant_id?: string | null
   extra?: Record<string, unknown>

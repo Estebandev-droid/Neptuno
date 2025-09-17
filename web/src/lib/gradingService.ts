@@ -36,8 +36,10 @@ export async function autoGradeMultipleChoice(
   let feedback = ''
 
   if (answer.answer_text && question.options) {
-    // Find the selected option
-    const selectedOption = question.options.find(opt => opt.text === answer.answer_text)
+    // Find the selected option (support both id and text for robustness)
+    const selectedOption = question.options.find(
+      opt => opt.id === answer.answer_text || opt.text === answer.answer_text
+    )
     
     if (selectedOption) {
       // Check if the selected option is correct
