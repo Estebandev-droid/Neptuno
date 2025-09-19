@@ -14,6 +14,12 @@ export interface Membership {
     name: string
     domain?: string
   }
+  user?: {
+    id: string
+    email?: string | null
+    full_name?: string | null
+    avatar_url?: string | null
+  }
 }
 
 export interface CreateMembershipRequest {
@@ -151,4 +157,51 @@ export async function getMembershipByUserAndTenant(
   }
 
   return data
+}
+
+// Listar memberships por tenant (incluye datos del usuario y del tenant)
+export async function listTenantMemberships(tenantId: string): Promise<Membership[]> {
+  // 1) Traer memberships + tenant embebido (FK existe)
+  const { data, error } = await supabase
+    .from('memberships')
+    .select(`
+      *,
+      tenant:tenants(
+        id,
+        name,
+        domain
+      )
+    `)
+    .eq('tenant_id', tenantId)
+    .eq('is_active', true)
+    .order('joined_at', { ascending: false })
+
+  if (error) {
+    console.error('Error al listar memberships del tenant:', error)
+    throw error
+  }
+
+  const memberships = (data as Membership[]) || []
+  if (memberships.length === 0) return []
+
+  // 2) Como no existe una FK directa memberships.user_id -> profiles.id en el esquema,
+  //    obtenemos los perfiles en una consulta separada y los combinamos manualmente.
+  const userIds = Array.from(new Set(memberships.map(m => m.user_id)))
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('id, email, full_name, avatar_url')
+    .in('id', userIds)
+
+  if (profilesError) {
+    console.error('Error al obtener perfiles para memberships:', profilesError)
+    throw profilesError
+  }
+
+  const profilesMap = new Map((profiles ?? []).map(p => [p.id, p]))
+
+  // 3) Devolver memberships con el objeto user hidratado
+  return memberships.map(m => ({
+    ...m,
+    user: profilesMap.get(m.user_id) || undefined,
+  }))
 }

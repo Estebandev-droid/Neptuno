@@ -43,9 +43,24 @@ export default function QuestionForm({ questions, onQuestionsChange }: QuestionF
 
   const updateOption = (questionIndex: number, optionIndex: number, value: string) => {
     const newQuestions = [...questions]
-    const options = [...(newQuestions[questionIndex].options || [])]
+    const q = { ...newQuestions[questionIndex] }
+    const options = [...(q.options || [])]
+    const prevValue = options[optionIndex] || ''
     options[optionIndex] = value
-    newQuestions[questionIndex] = { ...newQuestions[questionIndex], options }
+
+    // Mantener sincronizada la respuesta correcta cuando se edita una opción
+    let correct_answer = q.correct_answer
+    if (q.question_type === 'multiple_choice') {
+      if (correct_answer === prevValue) {
+        correct_answer = value.trim() ? value : ''
+      }
+      // Si la respuesta correcta ya no existe entre las opciones válidas, limpiarla
+      if (correct_answer && !options.some(opt => (opt || '').trim() === correct_answer)) {
+        correct_answer = ''
+      }
+    }
+
+    newQuestions[questionIndex] = { ...q, options, correct_answer }
     onQuestionsChange(newQuestions)
   }
 
@@ -73,11 +88,11 @@ export default function QuestionForm({ questions, onQuestionsChange }: QuestionF
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Preguntas de la Evaluación</h3>
+        <h3 className="text-lg font-semibold text-light">Preguntas de la Evaluación</h3>
         <button
           type="button"
           onClick={addQuestion}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="glass-button inline-flex items-center gap-2 px-4 py-2 rounded-lg text-light font-semibold"
         >
           <Plus className="h-4 w-4" />
           Agregar Pregunta
@@ -85,7 +100,7 @@ export default function QuestionForm({ questions, onQuestionsChange }: QuestionF
       </div>
 
       {questions.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
+        <div className="text-center py-8 text-light/70">
           <p>No hay preguntas agregadas. Haz clic en "Agregar Pregunta" para comenzar.</p>
         </div>
       )}
@@ -98,20 +113,20 @@ export default function QuestionForm({ questions, onQuestionsChange }: QuestionF
             onDragStart={() => handleDragStart(index)}
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, index)}
-            className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow"
+            className="glass-card rounded-xl p-6"
           >
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0 mt-2">
-                <GripVertical className="h-5 w-5 text-gray-400 cursor-move" />
+                <GripVertical className="h-5 w-5 text-light/50 cursor-move" />
               </div>
               
               <div className="flex-1 space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Pregunta {index + 1}</span>
+                  <span className="text-sm font-medium text-light/80">Pregunta {index + 1}</span>
                   <button
                     type="button"
                     onClick={() => removeQuestion(index)}
-                    className="text-red-600 hover:text-red-800 transition-colors"
+                    className="glass-button-danger p-2 rounded-lg"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -119,38 +134,38 @@ export default function QuestionForm({ questions, onQuestionsChange }: QuestionF
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-light/80 mb-2">
                       Texto de la pregunta
                     </label>
                     <textarea
                       value={question.question_text}
                       onChange={(e) => updateQuestion(index, 'question_text', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="glass-input w-full px-3 py-2 rounded-lg text-light placeholder-light/50 focus:outline-none"
                       rows={3}
                       placeholder="Escribe tu pregunta aquí..."
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-light/80 mb-2">
                       Tipo de pregunta
                     </label>
                     <select
                       value={question.question_type}
                       onChange={(e) => updateQuestion(index, 'question_type', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="glass-input w-full px-3 py-2 rounded-lg text-light focus:outline-none"
                     >
-                      <option value="multiple_choice">Opción múltiple</option>
-                      <option value="true_false">Verdadero/Falso</option>
-                      <option value="short_answer">Respuesta corta</option>
-                      <option value="essay">Ensayo</option>
+                      <option value="multiple_choice" className="bg-gray-800">Opción múltiple</option>
+                      <option value="true_false" className="bg-gray-800">Verdadero/Falso</option>
+                      <option value="short_answer" className="bg-gray-800">Respuesta corta</option>
+                      <option value="essay" className="bg-gray-800">Ensayo</option>
                     </select>
                   </div>
                 </div>
 
                 {question.question_type === 'multiple_choice' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-light/80 mb-2">
                       Opciones de respuesta
                     </label>
                     <div className="space-y-2">
@@ -161,13 +176,15 @@ export default function QuestionForm({ questions, onQuestionsChange }: QuestionF
                             name={`correct-${question.id}`}
                             checked={question.correct_answer === option}
                             onChange={() => updateQuestion(index, 'correct_answer', option)}
-                            className="text-blue-600"
+                            className="accent-[#1DB954]"
+                            disabled={!option.trim()}
+                            title={!option.trim() ? 'Completa la opción para poder seleccionarla como correcta' : ''}
                           />
                           <input
                             type="text"
                             value={option}
                             onChange={(e) => updateOption(index, optionIndex, e.target.value)}
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="glass-input flex-1 px-3 py-2 rounded-lg text-light placeholder-light/50 focus:outline-none"
                             placeholder={`Opción ${optionIndex + 1}`}
                           />
                         </div>
@@ -178,29 +195,29 @@ export default function QuestionForm({ questions, onQuestionsChange }: QuestionF
 
                 {question.question_type === 'true_false' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-light/80 mb-2">
                       Respuesta correcta
                     </label>
                     <div className="flex gap-4">
-                      <label className="flex items-center">
+                      <label className="flex items-center gap-2 text-light">
                         <input
                           type="radio"
                           name={`tf-${question.id}`}
                           value="true"
                           checked={question.correct_answer === 'true'}
                           onChange={(e) => updateQuestion(index, 'correct_answer', e.target.value)}
-                          className="mr-2 text-blue-600"
+                          className="accent-[#1DB954]"
                         />
                         Verdadero
                       </label>
-                      <label className="flex items-center">
+                      <label className="flex items-center gap-2 text-light">
                         <input
                           type="radio"
                           name={`tf-${question.id}`}
                           value="false"
                           checked={question.correct_answer === 'false'}
                           onChange={(e) => updateQuestion(index, 'correct_answer', e.target.value)}
-                          className="mr-2 text-blue-600"
+                          className="accent-[#1DB954]"
                         />
                         Falso
                       </label>
@@ -210,13 +227,13 @@ export default function QuestionForm({ questions, onQuestionsChange }: QuestionF
 
                 {(question.question_type === 'short_answer' || question.question_type === 'essay') && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-light/80 mb-2">
                       Respuesta modelo (opcional)
                     </label>
                     <textarea
                       value={question.correct_answer || ''}
                       onChange={(e) => updateQuestion(index, 'correct_answer', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="glass-input w-full px-3 py-2 rounded-lg text-light placeholder-light/50 focus:outline-none"
                       rows={question.question_type === 'essay' ? 4 : 2}
                       placeholder="Respuesta modelo o criterios de evaluación..."
                     />
@@ -224,7 +241,7 @@ export default function QuestionForm({ questions, onQuestionsChange }: QuestionF
                 )}
 
                 <div className="w-32">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-light/80 mb-2">
                     Puntos
                   </label>
                   <input
@@ -232,7 +249,7 @@ export default function QuestionForm({ questions, onQuestionsChange }: QuestionF
                     min="1"
                     value={question.points}
                     onChange={(e) => updateQuestion(index, 'points', parseInt(e.target.value) || 1)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="glass-input w-full px-3 py-2 rounded-lg text-light focus:outline-none"
                   />
                 </div>
               </div>

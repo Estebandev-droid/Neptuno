@@ -23,6 +23,7 @@ import CertificatesPage from './pages/Certificates'
 import EvaluationsPage from './pages/Evaluations'
 import Signup from './pages/Signup'
 import ProfilePage from './pages/Profile'
+import MembershipsPage from './pages/Memberships'
 
 const queryClient = new QueryClient()
 
@@ -70,6 +71,7 @@ export default function App() {
               <Route path="tasks" element={<TasksPage />} />
               <Route path="submissions" element={<SubmissionsPage />} />
               <Route path="tenants" element={<TenantsPage />} />
+              <Route path="memberships" element={<MembershipsPage />} />
               <Route path="relationships" element={<RelationshipsPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="certificates" element={<CertificatesPage />} />

@@ -260,7 +260,7 @@ export default function Evaluations() {
   }
 
   return (
-    <div className="min-h-screen liquid-gradient p-6">
+    <div className="min-h-screen p-6">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
@@ -287,14 +287,14 @@ export default function Evaluations() {
               placeholder="Buscar evaluaciones..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-light placeholder-light/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="glass-input pl-10 px-3 py-2 rounded-lg w-full placeholder-light/50 text-light focus:outline-none"
             />
           </div>
           
           <select
             value={selectedCourse}
             onChange={(e) => setSelectedCourse(e.target.value)}
-            className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-light focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="glass-input px-3 py-2 rounded-lg"
           >
             <option value="" className="bg-gray-800">Todos los cursos</option>
             {courses.map(course => (
@@ -305,7 +305,7 @@ export default function Evaluations() {
           <select
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value)}
-            className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-light focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="glass-input px-3 py-2 rounded-lg"
           >
             <option value="" className="bg-gray-800">Todos los tipos</option>
             <option value="quiz" className="bg-gray-800">Quiz</option>
@@ -546,7 +546,7 @@ export default function Evaluations() {
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-light placeholder-light/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="glass-input w-full px-3 py-2 rounded-lg placeholder-light/50 text-light focus:outline-none"
                     placeholder="Título de la evaluación"
                     required
                   />
@@ -557,7 +557,7 @@ export default function Evaluations() {
                   <select
                     value={formData.course_id}
                     onChange={(e) => setFormData({ ...formData, course_id: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-light focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="glass-input w-full px-3 py-2 rounded-lg text-light focus:outline-none"
                     required
                   >
                     <option value="">Seleccionar curso</option>
@@ -575,7 +575,7 @@ export default function Evaluations() {
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-light placeholder-light/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="glass-input w-full px-3 py-2 rounded-lg text-light placeholder-light/50 focus:outline-none"
                   placeholder="Descripción de la evaluación"
                   rows={3}
                 />
@@ -587,7 +587,7 @@ export default function Evaluations() {
                   <select
                     value={formData.evaluation_type}
                     onChange={(e) => setFormData({ ...formData, evaluation_type: e.target.value as 'quiz' | 'exam' | 'project' | 'assignment' })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-light focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="glass-input w-full px-3 py-2 rounded-lg text-light focus:outline-none"
                   >
                     <option value="quiz" className="bg-gray-800">Quiz</option>
                     <option value="exam" className="bg-gray-800">Examen</option>
@@ -602,7 +602,7 @@ export default function Evaluations() {
                     type="number"
                     value={formData.duration_minutes}
                     onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-light focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="glass-input w-full px-3 py-2 rounded-lg text-light focus:outline-none"
                     min="1"
                   />
                 </div>
@@ -613,7 +613,7 @@ export default function Evaluations() {
                     type="number"
                     value={formData.attempts_allowed}
                     onChange={(e) => setFormData({ ...formData, attempts_allowed: parseInt(e.target.value) || 1 })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-light focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="glass-input w-full px-3 py-2 rounded-lg text-light focus:outline-none"
                     min="1"
                   />
                 </div>
@@ -626,7 +626,7 @@ export default function Evaluations() {
                     type="datetime-local"
                     value={formData.start_date}
                     onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-light focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="glass-input w-full px-3 py-2 rounded-lg text-light focus:outline-none"
                   />
                 </div>
                 
@@ -636,7 +636,7 @@ export default function Evaluations() {
                     type="datetime-local"
                     value={formData.end_date}
                     onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-light focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="glass-input w-full px-3 py-2 rounded-lg text-light focus:outline-none"
                   />
                 </div>
               </div>
@@ -648,7 +648,7 @@ export default function Evaluations() {
                     type="number"
                     value={formData.passing_score}
                     onChange={(e) => setFormData({ ...formData, passing_score: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-light focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="glass-input w-full px-3 py-2 rounded-lg text-light focus:outline-none"
                     min="0"
                     max="100"
                   />
@@ -660,7 +660,7 @@ export default function Evaluations() {
                     type="number"
                     value={formData.max_score}
                     onChange={(e) => setFormData({ ...formData, max_score: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-light focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="glass-input w-full px-3 py-2 rounded-lg text-light focus:outline-none"
                     min="1"
                   />
                 </div>
@@ -671,7 +671,7 @@ export default function Evaluations() {
                 <textarea
                   value={formData.instructions}
                   onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-light placeholder-light/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="glass-input w-full px-3 py-2 rounded-lg text-light placeholder-light/50 focus:outline-none"
                   placeholder="Instrucciones para los estudiantes"
                   rows={3}
                 />
@@ -683,7 +683,7 @@ export default function Evaluations() {
                     type="checkbox"
                     checked={formData.show_results}
                     onChange={(e) => setFormData({ ...formData, show_results: e.target.checked })}
-                    className="rounded border-white/20 bg-white/10 text-blue-500 focus:ring-blue-500"
+                    className="rounded border-white/20 bg-white/10 text-green-500 focus:ring-green-500"
                   />
                   Mostrar resultados
                 </label>
@@ -693,7 +693,7 @@ export default function Evaluations() {
                     type="checkbox"
                     checked={formData.randomize_questions}
                     onChange={(e) => setFormData({ ...formData, randomize_questions: e.target.checked })}
-                    className="rounded border-white/20 bg-white/10 text-blue-500 focus:ring-blue-500"
+                    className="rounded border-white/20 bg-white/10 text-green-500 focus:ring-green-500"
                   />
                   Aleatorizar preguntas
                 </label>
@@ -703,7 +703,7 @@ export default function Evaluations() {
                     type="checkbox"
                     checked={formData.is_published}
                     onChange={(e) => setFormData({ ...formData, is_published: e.target.checked })}
-                    className="rounded border-white/20 bg-white/10 text-blue-500 focus:ring-blue-500"
+                    className="rounded border-white/20 bg-white/10 text-green-500 focus:ring-green-500"
                   />
                   Publicar inmediatamente
                 </label>
@@ -762,7 +762,7 @@ export default function Evaluations() {
               </button>
               <button
                 onClick={handleDeleteEvaluation}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                className="glass-button-danger px-4 py-2 rounded-lg font-semibold"
               >
                 Eliminar
               </button>

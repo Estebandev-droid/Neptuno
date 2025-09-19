@@ -230,6 +230,12 @@ export default function Sidebar({
             collapsed={collapsed} 
           />
           <NavItem 
+            to="/memberships" 
+            label="Membresías" 
+            icon={UsersIcon} 
+            collapsed={collapsed} 
+          />
+          <NavItem 
             to="/relationships" 
             label="Relaciones Padre-Estudiante" 
             icon={UserGroupIcon} 
