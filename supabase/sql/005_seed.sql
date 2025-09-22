@@ -7,16 +7,8 @@
 
 BEGIN;
 
--- 1) Roles base (no se vuelven a insertar si ya existen)
-INSERT INTO public.roles (name, description, is_system)
-VALUES
-  ('superadmin','Super Administrador del sistema', true),
-  ('platform_admin','Administrador global de la plataforma', true),
-  ('tenant_admin','Administrador de institución', true),
-  ('teacher','Docente de cursos', true),
-  ('student','Estudiante registrado', true),
-  ('parent','Padre o acudiente', true)
-ON CONFLICT (name) DO NOTHING;
+-- 1) Nota: Los roles ahora se manejan directamente en profiles.role y memberships.role
+-- No se necesita tabla separada de roles
 
 -- 2) Tenant de ejemplo (único por dominio)
 INSERT INTO public.tenants (name, domain, branding, plan)
@@ -49,21 +41,20 @@ SET search_path = public
 LANGUAGE plpgsql AS $$
 DECLARE
   v_user_id uuid;
-  v_superadmin_role_id uuid;
 BEGIN
   SELECT id INTO v_user_id FROM auth.users ORDER BY created_at LIMIT 1;
-  SELECT id INTO v_superadmin_role_id FROM public.roles WHERE name = 'superadmin';
 
-  IF v_user_id IS NOT NULL AND v_superadmin_role_id IS NOT NULL THEN
-    INSERT INTO public.user_roles (user_id, role_id)
-    VALUES (v_user_id, v_superadmin_role_id)
-    ON CONFLICT (user_id, role_id) DO NOTHING;
-
+  IF v_user_id IS NOT NULL THEN
     -- Crear perfil si no existe
-    INSERT INTO public.profiles (id, email, full_name, role, is_active)
-    SELECT id, email, COALESCE(raw_user_meta_data->>'full_name', split_part(email,'@',1)), 'super_admin', true
+    INSERT INTO public.profiles (id, full_name, role, is_active)
+    SELECT id, COALESCE(raw_user_meta_data->>'full_name', split_part(email,'@',1)), 'super_admin', true
     FROM auth.users WHERE id = v_user_id
     ON CONFLICT (id) DO NOTHING;
+    
+    -- Agregar a platform_admins
+    INSERT INTO public.platform_admins (user_id)
+    VALUES (v_user_id)
+    ON CONFLICT (user_id) DO NOTHING;
   END IF;
 END; $$;
 
@@ -167,6 +158,320 @@ BEGIN
     FROM public.profiles p
     WHERE p.role = 'super_admin'
     ON CONFLICT (user_id, tenant_id) DO NOTHING;
+  END IF;
+END $$;
+
+-- =============================================
+-- DATOS DE EJEMPLO PARA FUNCIONALIDADES AVANZADAS
+-- =============================================
+
+-- 7) Clases en vivo de ejemplo
+DO $$
+DECLARE
+  v_tenant_id uuid;
+  v_course_id uuid;
+  v_live_class_id uuid;
+BEGIN
+  SELECT id INTO v_tenant_id FROM public.tenants WHERE domain = 'demo.neptuno.edu' LIMIT 1;
+  SELECT id INTO v_course_id FROM public.courses WHERE tenant_id = v_tenant_id AND title = 'Curso de Bienvenida' LIMIT 1;
+
+  IF v_course_id IS NOT NULL THEN
+    -- Obtener el primer usuario como instructor
+    DECLARE
+      v_instructor_id uuid;
+    BEGIN
+      SELECT id INTO v_instructor_id FROM auth.users ORDER BY created_at LIMIT 1;
+      
+      IF v_instructor_id IS NOT NULL THEN
+        -- Clase en vivo programada
+        INSERT INTO public.live_classes (tenant_id, course_id, instructor_id, title, description, scheduled_start, scheduled_end, status)
+         VALUES (
+           v_tenant_id,
+           v_course_id,
+           v_instructor_id,
+           'Sesión de Bienvenida',
+           'Primera clase en vivo para conocer la plataforma',
+           now() + interval '1 day',
+           now() + interval '1 day' + interval '60 minutes',
+           'scheduled'
+         )
+         ON CONFLICT DO NOTHING
+         RETURNING id INTO v_live_class_id;
+
+         -- Si no se insertó, obtener el ID existente
+         IF v_live_class_id IS NULL THEN
+           SELECT id INTO v_live_class_id FROM public.live_classes 
+           WHERE course_id = v_course_id AND title = 'Sesión de Bienvenida' LIMIT 1;
+         END IF;
+       END IF;
+     END;
+  END IF;
+END $$;
+
+-- 8) Comentarios y discusiones de ejemplo
+DO $$
+DECLARE
+  v_tenant_id uuid;
+  v_course_id uuid;
+  v_user_id uuid;
+  v_task_id uuid;
+  v_discussion_id uuid;
+BEGIN
+  SELECT id INTO v_tenant_id FROM public.tenants WHERE domain = 'demo.neptuno.edu' LIMIT 1;
+  
+  SELECT c.id INTO v_course_id FROM public.courses c
+  JOIN public.tenants t ON t.id = c.tenant_id
+  WHERE t.domain = 'demo.neptuno.edu' AND c.title = 'Curso de Bienvenida' LIMIT 1;
+  
+  SELECT id INTO v_user_id FROM auth.users ORDER BY created_at LIMIT 1;
+
+  IF v_course_id IS NOT NULL AND v_user_id IS NOT NULL THEN
+    -- Discusión de curso
+    INSERT INTO public.course_discussions (course_id, title, content, user_id)
+    VALUES (
+      v_course_id,
+      'Presentaciones',
+      'Espacio para que los estudiantes se presenten',
+      v_user_id
+    )
+    ON CONFLICT DO NOTHING
+    RETURNING id INTO v_discussion_id;
+
+    -- Si no se insertó, obtener el ID existente
+    IF v_discussion_id IS NULL THEN
+      SELECT id INTO v_discussion_id FROM public.course_discussions 
+      WHERE course_id = v_course_id AND title = 'Presentaciones' LIMIT 1;
+    END IF;
+
+    -- Comentario en la discusión (como respuesta)
+    IF v_discussion_id IS NOT NULL THEN
+      INSERT INTO public.course_discussions (tenant_id, course_id, user_id, parent_id, content, discussion_type)
+      VALUES (
+        v_tenant_id,
+        v_course_id,
+        v_user_id,
+        v_discussion_id,
+        '¡Hola a todos! Soy el instructor de este curso. ¡Bienvenidos!',
+        'general'
+      )
+      ON CONFLICT DO NOTHING;
+    END IF;
+  END IF;
+END $$;
+
+-- 9) Grupos de tareas y progreso avanzado
+DO $$
+DECLARE
+  v_course_id uuid;
+  v_task_id uuid;
+  v_group_id uuid;
+  v_user_id uuid;
+  v_tenant_id uuid;
+BEGIN
+  SELECT c.id, c.tenant_id INTO v_course_id, v_tenant_id FROM public.courses c
+  JOIN public.tenants t ON t.id = c.tenant_id
+  WHERE t.domain = 'demo.neptuno.edu' AND c.title = 'Curso de Bienvenida' LIMIT 1;
+  
+  SELECT id INTO v_task_id FROM public.tasks WHERE course_id = v_course_id LIMIT 1;
+  SELECT id INTO v_user_id FROM auth.users ORDER BY created_at LIMIT 1;
+
+  IF v_course_id IS NOT NULL AND v_user_id IS NOT NULL THEN
+    -- Crear tarea inicial primero
+    INSERT INTO public.tasks (tenant_id, course_id, title, description, task_type)
+    VALUES (
+      v_tenant_id,
+      v_course_id,
+      'Actividad Inicial',
+      'Tarea para familiarizarse con la plataforma',
+      'assignment'
+    )
+    ON CONFLICT DO NOTHING
+    RETURNING id INTO v_task_id;
+    
+    -- Grupo de tareas (requiere task_id)
+    IF v_task_id IS NOT NULL THEN
+      INSERT INTO public.task_groups (task_id, name, description, created_by)
+      VALUES (
+        v_task_id,
+        'Actividades Iniciales',
+        'Grupo de tareas para familiarizarse con la plataforma',
+        v_user_id
+      )
+      ON CONFLICT DO NOTHING
+      RETURNING id INTO v_group_id;
+    END IF;
+
+    -- Progreso de tarea (si existe una tarea)
+    IF v_task_id IS NOT NULL THEN
+      INSERT INTO public.task_progress (task_id, student_id, status, progress_percentage)
+      VALUES (
+        v_task_id,
+        v_user_id,
+        'in_progress',
+        25
+      )
+      ON CONFLICT DO NOTHING;
+    END IF;
+  END IF;
+END $$;
+
+-- 10) Métricas de engagement y alertas
+DO $$
+DECLARE
+  v_user_id uuid;
+  v_course_id uuid;
+BEGIN
+  SELECT id INTO v_user_id FROM auth.users ORDER BY created_at LIMIT 1;
+  SELECT c.id INTO v_course_id FROM public.courses c
+  JOIN public.tenants t ON t.id = c.tenant_id
+  WHERE t.domain = 'demo.neptuno.edu' AND c.title = 'Curso de Bienvenida' LIMIT 1;
+
+  IF v_user_id IS NOT NULL AND v_course_id IS NOT NULL THEN
+    -- Métricas de engagement
+    INSERT INTO public.student_engagement_metrics (tenant_id, student_id, course_id, date, login_count, total_time_minutes)
+    VALUES (
+      (SELECT tenant_id FROM public.courses WHERE id = v_course_id),
+      v_user_id,
+      v_course_id,
+      current_date,
+      5,
+      120
+    )
+    ON CONFLICT (student_id, course_id, date) DO UPDATE SET
+      login_count = EXCLUDED.login_count,
+      total_time_minutes = EXCLUDED.total_time_minutes;
+
+    -- Alerta de riesgo académico (ejemplo)
+    INSERT INTO public.academic_risk_alerts (tenant_id, student_id, course_id, risk_type, risk_level, description)
+    VALUES (
+      (SELECT tenant_id FROM public.courses WHERE id = v_course_id),
+      v_user_id,
+      v_course_id,
+      'low_engagement',
+      'low',
+      'Estudiante con bajo riesgo - monitoreo inicial'
+    )
+    ON CONFLICT DO NOTHING;
+  END IF;
+END $$;
+
+-- 11) Sistema de gamificación
+DO $$
+DECLARE
+  v_user_id uuid;
+  v_course_id uuid;
+  v_achievement_id uuid;
+BEGIN
+  SELECT id INTO v_user_id FROM auth.users ORDER BY created_at LIMIT 1;
+  SELECT c.id INTO v_course_id FROM public.courses c
+  JOIN public.tenants t ON t.id = c.tenant_id
+  WHERE t.domain = 'demo.neptuno.edu' AND c.title = 'Curso de Bienvenida' LIMIT 1;
+
+  IF v_user_id IS NOT NULL THEN
+    -- Logros disponibles (solo si no existen)
+    INSERT INTO public.achievements (tenant_id, name, description, badge_icon, points_value, criteria)
+    SELECT tenant_id, name, description, badge_icon, points_value, criteria::jsonb
+    FROM (
+      VALUES 
+        ((SELECT tenant_id FROM public.courses WHERE id = v_course_id), 'Primer Paso', 'Completaste tu primer inicio de sesión', '/icons/first-step.svg', 10, '{"type": "login", "count": 1}'),
+        ((SELECT tenant_id FROM public.courses WHERE id = v_course_id), 'Estudiante Activo', 'Iniciaste sesión 5 veces', '/icons/active-student.svg', 25, '{"type": "login", "count": 5}'),
+        ((SELECT tenant_id FROM public.courses WHERE id = v_course_id), 'Participativo', 'Escribiste tu primer comentario', '/icons/participative.svg', 15, '{"type": "comment", "count": 1}')
+    ) AS new_achievements(tenant_id, name, description, badge_icon, points_value, criteria)
+    WHERE NOT EXISTS (
+      SELECT 1 FROM public.achievements a 
+      WHERE a.tenant_id = new_achievements.tenant_id 
+        AND a.name = new_achievements.name
+    );
+
+    -- Otorgar logro inicial
+    SELECT id INTO v_achievement_id FROM public.achievements 
+    WHERE name = 'Primer Paso' AND tenant_id = (SELECT tenant_id FROM public.courses WHERE id = v_course_id) LIMIT 1;
+    
+    IF v_achievement_id IS NOT NULL THEN
+      INSERT INTO public.student_achievements (student_id, achievement_id, course_id, points_earned)
+      VALUES (v_user_id, v_achievement_id, v_course_id, 10)
+      ON CONFLICT DO NOTHING;
+    END IF;
+
+    -- Puntos iniciales del estudiante
+    INSERT INTO public.student_points (tenant_id, student_id, course_id, total_points, level_number)
+    VALUES ((SELECT tenant_id FROM public.courses WHERE id = v_course_id), v_user_id, v_course_id, 10, 1)
+    ON CONFLICT (student_id, course_id) DO UPDATE SET
+      total_points = EXCLUDED.total_points,
+      level_number = EXCLUDED.level_number;
+  END IF;
+END $$;
+
+-- 12) Sesiones de estudio
+DO $$
+DECLARE
+  v_user_id uuid;
+  v_course_id uuid;
+BEGIN
+  SELECT id INTO v_user_id FROM auth.users ORDER BY created_at LIMIT 1;
+  SELECT c.id INTO v_course_id FROM public.courses c
+  JOIN public.tenants t ON t.id = c.tenant_id
+  WHERE t.domain = 'demo.neptuno.edu' AND c.title = 'Curso de Bienvenida' LIMIT 1;
+
+  IF v_user_id IS NOT NULL AND v_course_id IS NOT NULL THEN
+    -- Sesión de estudio de ejemplo
+    INSERT INTO public.study_sessions (facilitator_id, course_id, title, start_time, end_time)
+    VALUES (
+      v_user_id,
+      v_course_id,
+      'Sesión de Estudio Demo',
+      now() - interval '2 hours',
+      now() - interval '1 hour 15 minutes'
+    )
+    ON CONFLICT DO NOTHING;
+  END IF;
+END $$;
+
+-- 13) Datos adicionales para demostración
+DO $$
+DECLARE
+  v_tenant_id uuid;
+  v_category_id uuid;
+  v_advanced_course_id uuid;
+BEGIN
+  SELECT id INTO v_tenant_id FROM public.tenants WHERE domain = 'demo.neptuno.edu' LIMIT 1;
+  SELECT id INTO v_category_id FROM public.categories WHERE tenant_id = v_tenant_id AND name = 'General' LIMIT 1;
+
+  IF v_tenant_id IS NOT NULL THEN
+    -- Curso avanzado adicional
+    INSERT INTO public.courses (tenant_id, title, description, cover_image, category_id, is_active)
+    VALUES (
+      v_tenant_id,
+      'Matemáticas Avanzadas',
+      'Curso de matemáticas con funcionalidades interactivas',
+      'https://demo.neptuno.edu/images/math_course.png',
+      v_category_id,
+      true
+    )
+    ON CONFLICT DO NOTHING
+    RETURNING id INTO v_advanced_course_id;
+
+    -- Si no se insertó, obtener el ID existente
+    IF v_advanced_course_id IS NULL THEN
+      SELECT id INTO v_advanced_course_id FROM public.courses 
+      WHERE tenant_id = v_tenant_id AND title = 'Matemáticas Avanzadas' LIMIT 1;
+    END IF;
+
+    -- Tarea con grupo para el curso avanzado
+    IF v_advanced_course_id IS NOT NULL THEN
+      INSERT INTO public.tasks (tenant_id, course_id, title, description, due_date, max_score, is_published, task_type)
+      VALUES (
+        v_tenant_id,
+        v_advanced_course_id,
+        'Proyecto Colaborativo',
+        'Trabajo en equipo para resolver problemas matemáticos',
+        now() + interval '14 days',
+        200,
+        true,
+        'project'
+      )
+      ON CONFLICT DO NOTHING;
+    END IF;
   END IF;
 END $$;
 

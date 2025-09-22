@@ -29,7 +29,8 @@ export async function createUser(
   signatureUrl?: string,
   photoUrl?: string
 ) {
-  // Crear usuario usando Supabase Auth y luego sincronizar perfil con la RPC create_dev_user
+  // IMPORTANTE: Esta función NO debe causar auto-login del usuario creado
+  // Solo crea el perfil y asigna roles, sin afectar la sesión actual del admin
   console.log('Creando usuario:', { email, fullName, roleName, phone })
   
   try {
@@ -63,39 +64,25 @@ export async function createUser(
       throw new Error('No se permiten emails de dominios temporales')
     }
 
-    // 1) Registrar el usuario en Supabase Auth (si no existe)
-    const signUpRes = await supabase.auth.signUp({
-      email: cleanEmail,
-      password,
-      options: {
-        data: {
-          full_name: fullName?.trim() || cleanEmail.split('@')[0],
-        },
-      },
-    })
+    // SOLUCIÓN AL AUTO-LOGIN:
+    // En lugar de usar signUp (que crea sesión), usamos la API de administración
+    // Para desarrollo, creamos directamente el perfil y rol sin tocar auth.users
+    
+    // Verificar si el usuario ya existe
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id, email')
+      .eq('email', cleanEmail)
+      .single()
 
-    if (signUpRes.error) {
-      const msg = signUpRes.error.message || ''
-      // Si el usuario ya existe, continuamos (flujo idempotente)
-      const alreadyRegistered = /already registered|User already registered/i.test(msg)
-      if (!alreadyRegistered) {
-        console.error('Error en signUp:', signUpRes.error)
-        // Pista adicional si el error reporta email inválido
-        if (/invalid email|email address .* is invalid/i.test(msg)) {
-          throw new Error(
-            'No se pudo registrar el usuario: el correo fue rechazado por el proveedor de autenticación. Revisa que el proveedor Email esté habilitado y que no haya una lista de dominios permitidos que excluya este dominio en Supabase Auth.'
-          )
-        }
-        throw new Error(`No se pudo registrar el usuario: ${msg}`)
-      } else {
-        console.info('Usuario ya registrado en Auth; continuando con sincronización de perfil...')
-      }
+    if (existingProfile) {
+      throw new Error('Ya existe un usuario con este email')
     }
 
-    // 2) Sincronizar/crear perfil y asignar rol con RPC create_dev_user
-    const { data, error } = await supabase.rpc('create_dev_user', {
+    // Crear usuario usando función RPC que no causa auto-login
+    const { data, error } = await supabase.rpc('create_user_admin', {
       p_email: cleanEmail,
-      p_password: password, // ignorado por la RPC, solo para compatibilidad
+      p_password: password,
       p_full_name: fullName?.trim() || cleanEmail.split('@')[0],
       p_role_name: roleName,
       p_phone: phone,
@@ -104,16 +91,16 @@ export async function createUser(
     })
 
     if (error) {
-      console.error('Error en create_dev_user:', error)
-      throw new Error(`Error al crear usuario (perfil/rol): ${error.message}`)
+      console.error('Error en create_user_admin:', error)
+      throw new Error(`Error al crear usuario: ${error.message}`)
     }
 
     if (!data?.success) {
-      console.error('Error en create_dev_user:', data?.error)
-      throw new Error(`Error al crear usuario (perfil/rol): ${data?.error || 'desconocido'}`)
+      console.error('Error en create_user_admin:', data?.error)
+      throw new Error(`Error al crear usuario: ${data?.error || 'desconocido'}`)
     }
 
-    console.log('Usuario creado/sincronizado exitosamente:', data)
+    console.log('Usuario creado exitosamente sin auto-login:', data)
     return {
       user: {
         id: data.user_id,

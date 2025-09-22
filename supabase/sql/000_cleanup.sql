@@ -106,20 +106,22 @@ drop function if exists public.insert_certificate_template(uuid, text, text, jso
 drop function if exists public.update_certificate_template(uuid, text, text, jsonb, boolean);
 drop function if exists public.delete_certificate_template(uuid);
 
--- Funciones de administración
-drop function if exists public.get_role(uuid);
-drop function if exists public.is_platform_admin(uuid);
-drop function if exists public.has_role(text, uuid);
-drop function if exists public.role_create(text, text);
-drop function if exists public.role_rename(uuid, text);
-drop function if exists public.role_delete(uuid);
-drop function if exists public.user_role_assign(uuid, text);
+-- Las funciones de administración se eliminan con CASCADE al final
 
 -- Funciones utilitarias (usar CASCADE para eliminar dependencias)
 drop function if exists public.set_updated_at() cascade;
 drop function if exists public.handle_new_user() cascade;
 drop function if exists public.sync_platform_admins() cascade;
 drop function if exists public.audit_trigger() cascade;
+
+-- Funciones de administración (usar CASCADE para eliminar dependencias)
+drop function if exists public.get_role(uuid) cascade;
+drop function if exists public.is_platform_admin(uuid) cascade;
+drop function if exists public.has_role(text, uuid) cascade;
+drop function if exists public.role_create(text, text) cascade;
+drop function if exists public.role_rename(uuid, text) cascade;
+drop function if exists public.role_delete(uuid) cascade;
+drop function if exists public.user_role_assign(uuid, text) cascade;
 
 -- =============================================
 -- ELIMINAR TABLAS EN ORDEN CORRECTO
