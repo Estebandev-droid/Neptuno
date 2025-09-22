@@ -55,16 +55,14 @@ async function debugPermissions() {
     // 4. Verificar roles disponibles
     console.log('\n4. CONSULTANDO ROLES:')
     const { data: roles, error: rolesError } = await supabase
-      .from('roles')
-      .select('*')
-      .order('name')
+      .rpc('list_available_roles')
     
     if (rolesError) {
       console.error('Error al consultar roles:', rolesError)
     } else {
       console.log('Roles encontrados:', roles?.length || 0)
       roles?.forEach(role => {
-        console.log(`- ${role.name}: ${role.description}`)
+        console.log(`- ${role.role_name}: ${role.description}`)
       })
     }
 

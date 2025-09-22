@@ -1,42 +1,69 @@
 import { supabase } from './supabaseClient'
 import type { Role } from '../types/roles'
 
-// Listar roles (RLS: solo platform_admin puede ver)
+// Fallback estático para roles del sistema cuando el RPC no está disponible o falla
+const FALLBACK_ROLES: Role[] = [
+  { id: 'role_owner', name: 'owner', description: 'Propietario del tenant', is_system: true, created_at: new Date().toISOString() },
+  { id: 'role_admin', name: 'admin', description: 'Administrador del tenant', is_system: true, created_at: new Date().toISOString() },
+  { id: 'role_teacher', name: 'teacher', description: 'Docente/Instructor', is_system: true, created_at: new Date().toISOString() },
+  { id: 'role_student', name: 'student', description: 'Estudiante', is_system: true, created_at: new Date().toISOString() },
+  { id: 'role_parent', name: 'parent', description: 'Padre/Acudiente', is_system: true, created_at: new Date().toISOString() },
+  { id: 'role_viewer', name: 'viewer', description: 'Solo lectura', is_system: true, created_at: new Date().toISOString() },
+]
+
+// Listar roles disponibles usando la función RPC, con fallback seguro
 export async function listRoles(): Promise<Role[]> {
-  console.log('Consultando roles...')
-  const { data, error } = await supabase.from('roles').select('id, name, description, is_system, created_at').order('name')
-  if (error) {
-    console.error('Error al consultar roles:', error)
-    throw error
+  try {
+    console.log('Consultando roles disponibles...')
+    const { data, error } = await supabase.rpc('list_available_roles')
+
+    if (error) {
+      console.warn('[rolesService] RPC list_available_roles falló, usando fallback local:', error)
+      return FALLBACK_ROLES
+    }
+
+    // Convertir el formato de la función RPC al formato esperado por el frontend
+    const roles = (data || []).map((role: { role_name: string; description?: string | null }, index: number) => ({
+      id: `role_${index}`,
+      name: role.role_name,
+      description: role.description ?? undefined,
+      is_system: true,
+      created_at: new Date().toISOString(),
+    }))
+
+    // Si la RPC no devolvió nada, usar fallback para asegurar UI funcional
+    if (!roles || roles.length === 0) {
+      return FALLBACK_ROLES
+    }
+
+    console.log('Roles encontrados:', roles.length, roles)
+    return roles as Role[]
+  } catch (err) {
+    console.warn('[rolesService] Error inesperado listando roles, usando fallback local:', err)
+    return FALLBACK_ROLES
   }
-  console.log('Roles encontrados:', data?.length || 0, data)
-  return data as Role[]
 }
 
-export async function createRole(name: string, description?: string): Promise<string> {
-  // Preferir RPC para validar permisos del lado de Supabase
-  console.log('Creando rol:', name, 'con descripción:', description)
-  const { data, error } = await supabase.rpc('role_create', { p_name: name, p_description: description ?? null })
-  if (error) {
-    console.error('Error al crear rol:', error)
-    throw error
-  }
-  console.log('Rol creado/upsert exitosamente:', data)
-  return data as string
+export async function createRole(): Promise<string> {
+  // Los roles están predefinidos en el sistema, no se pueden crear nuevos
+  console.warn('Intento de crear rol personalizado. Los roles están predefinidos en el sistema.')
+  throw new Error('Los roles están predefinidos en el sistema. Use: owner, admin, teacher, student, parent, viewer')
 }
 
-export async function renameRole(oldName: string, newName: string): Promise<void> {
-  const { error } = await supabase.rpc('role_rename', { p_old_name: oldName, p_new_name: newName })
-  if (error) throw error
+export async function renameRole(): Promise<void> {
+  // Los roles están predefinidos en el sistema, no se pueden renombrar
+  console.warn('Intento de renombrar rol. Los roles están predefinidos en el sistema.')
+  throw new Error('Los roles están predefinidos en el sistema y no se pueden renombrar')
 }
 
-export async function deleteRole(name: string): Promise<void> {
-  const { error } = await supabase.rpc('role_delete', { p_name: name })
-  if (error) throw error
+export async function deleteRole(): Promise<void> {
+  // Los roles están predefinidos en el sistema, no se pueden eliminar
+  console.warn('Intento de eliminar rol. Los roles están predefinidos en el sistema.')
+  throw new Error('Los roles están predefinidos en el sistema y no se pueden eliminar')
 }
 
-// Actualiza solo la descripción de un rol existente (usa role_create con mismo nombre)
-export async function updateRoleDescription(name: string, description: string | null): Promise<void> {
-  const { error } = await supabase.rpc('role_create', { p_name: name, p_description: description })
-  if (error) throw error
+// Los roles están predefinidos, no se pueden modificar sus descripciones
+export async function updateRoleDescription(): Promise<void> {
+  console.warn('Intento de actualizar descripción de rol. Los roles están predefinidos en el sistema.')
+  throw new Error('Los roles están predefinidos en el sistema y no se pueden modificar')
 }

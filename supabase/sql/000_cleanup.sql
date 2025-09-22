@@ -13,28 +13,53 @@ set session_replication_role = replica;
 -- =============================================
 
 -- Eliminar todos los objetos de los buckets primero
-delete from storage.objects where bucket_id in ('course-covers', 'resource-files', 'tenant-logos');
+delete from storage.objects where bucket_id in (
+  'course-covers', 
+  'resource-files', 
+  'tenant-logos',
+  'user-avatars',
+  'user-signatures',
+  'live-recordings',
+  'live-resources',
+  'task-submissions',
+  'avatars-hd',
+  'certificates-custom',
+  'exports'
+);
 
 -- Eliminar los buckets
-delete from storage.buckets where id in ('course-covers', 'resource-files', 'tenant-logos');
+delete from storage.buckets where id in (
+  'course-covers', 
+  'resource-files', 
+  'tenant-logos',
+  'user-avatars',
+  'user-signatures',
+  'live-recordings',
+  'live-resources',
+  'task-submissions',
+  'avatars-hd',
+  'certificates-custom',
+  'exports'
+);
 
 -- =============================================
 -- ELIMINAR POLÍTICAS RLS
 -- =============================================
 
--- Eliminar políticas de storage
-drop policy if exists "Lectura pública de portadas de cursos" on storage.objects;
-drop policy if exists "Usuarios autenticados pueden subir portadas" on storage.objects;
-drop policy if exists "Usuarios pueden actualizar sus propias portadas" on storage.objects;
-drop policy if exists "Usuarios pueden eliminar sus propias portadas" on storage.objects;
-drop policy if exists "Usuarios autenticados pueden ver recursos" on storage.objects;
-drop policy if exists "Usuarios autenticados pueden subir recursos" on storage.objects;
-drop policy if exists "Usuarios pueden actualizar sus propios recursos" on storage.objects;
-drop policy if exists "Usuarios pueden eliminar sus propios recursos" on storage.objects;
-drop policy if exists "Lectura pública de logos de tenants" on storage.objects;
-drop policy if exists "Usuarios autenticados pueden subir logos" on storage.objects;
-drop policy if exists "Usuarios pueden actualizar logos de su tenant" on storage.objects;
-drop policy if exists "Usuarios pueden eliminar logos de su tenant" on storage.objects;
+-- Eliminar todas las políticas de storage de forma dinámica
+do $$
+declare
+    r record;
+begin
+    -- Eliminar todas las políticas de storage.objects
+    for r in (
+        select policyname
+        from pg_policies
+        where schemaname = 'storage' and tablename = 'objects'
+    ) loop
+        execute format('drop policy if exists %I on storage.objects', r.policyname);
+    end loop;
+end $$;
 
 -- Eliminar todas las políticas de las tablas principales
 do $$
@@ -55,29 +80,112 @@ end $$;
 -- ELIMINAR TRIGGERS
 -- =============================================
 
--- Eliminar triggers de updated_at
-drop trigger if exists trg_tenants_updated_at on public.tenants;
-drop trigger if exists trg_profiles_updated_at on public.profiles;
-drop trigger if exists trg_courses_updated_at on public.courses;
-drop trigger if exists trg_enrollments_updated_at on public.enrollments;
-drop trigger if exists trg_resources_updated_at on public.resources;
-drop trigger if exists trg_grades_updated_at on public.grades;
-drop trigger if exists trg_evaluations_updated_at on public.evaluations;
-drop trigger if exists trg_evaluation_questions_updated_at on public.evaluation_questions;
-drop trigger if exists trg_certificates_updated_at on public.certificates;
-drop trigger if exists trg_certificate_templates_updated_at on public.certificate_templates;
-drop trigger if exists trg_notifications_updated_at on public.notifications;
--- Triggers adicionales que pueden existir
-drop trigger if exists trg_categories_updated_at on public.categories;
-drop trigger if exists trg_tasks_updated_at on public.tasks;
-drop trigger if exists trg_submissions_updated_at on public.submissions;
-drop trigger if exists trg_relationships_updated_at on public.relationships;
-drop trigger if exists set_certificate_templates_updated_at on public.certificate_templates;
+-- Eliminar triggers de updated_at (solo si las tablas existen)
+do $$
+begin
+    -- Eliminar triggers solo si las tablas existen
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'tenants') then
+        drop trigger if exists trg_tenants_updated_at on public.tenants;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'profiles') then
+        drop trigger if exists trg_profiles_updated_at on public.profiles;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'courses') then
+        drop trigger if exists trg_courses_updated_at on public.courses;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'enrollments') then
+        drop trigger if exists trg_enrollments_updated_at on public.enrollments;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'resources') then
+        drop trigger if exists trg_resources_updated_at on public.resources;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'grades') then
+        drop trigger if exists trg_grades_updated_at on public.grades;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'evaluations') then
+        drop trigger if exists trg_evaluations_updated_at on public.evaluations;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'evaluation_questions') then
+        drop trigger if exists trg_evaluation_questions_updated_at on public.evaluation_questions;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'certificates') then
+        drop trigger if exists trg_certificates_updated_at on public.certificates;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'certificate_templates') then
+        drop trigger if exists trg_certificate_templates_updated_at on public.certificate_templates;
+        drop trigger if exists set_certificate_templates_updated_at on public.certificate_templates;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'notifications') then
+        drop trigger if exists trg_notifications_updated_at on public.notifications;
+    end if;
+    -- Triggers adicionales que pueden existir
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'categories') then
+        drop trigger if exists trg_categories_updated_at on public.categories;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'tasks') then
+        drop trigger if exists trg_tasks_updated_at on public.tasks;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'submissions') then
+        drop trigger if exists trg_submissions_updated_at on public.submissions;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'relationships') then
+        drop trigger if exists trg_relationships_updated_at on public.relationships;
+    end if;
+    -- Triggers para tablas de clases en vivo y sesiones
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'live_classes') then
+        drop trigger if exists trg_live_classes_updated_at on public.live_classes;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'study_sessions') then
+        drop trigger if exists trg_study_sessions_updated_at on public.study_sessions;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'live_class_comments') then
+        drop trigger if exists trg_live_class_comments_updated_at on public.live_class_comments;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'course_discussions') then
+        drop trigger if exists trg_course_discussions_updated_at on public.course_discussions;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'task_progress') then
+        drop trigger if exists trg_task_progress_updated_at on public.task_progress;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'student_points') then
+        drop trigger if exists trg_student_points_updated_at on public.student_points;
+    end if;
+    -- Triggers adicionales de memberships
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'memberships') then
+        drop trigger if exists trg_memberships_updated_at on public.memberships;
+    end if;
+end $$;
 
--- Eliminar triggers de auditoría
-drop trigger if exists audit_trigger_courses on public.courses;
-drop trigger if exists audit_trigger_enrollments on public.enrollments;
-drop trigger if exists audit_trigger_grades on public.grades;
+-- Eliminar triggers de auditoría (solo si las tablas existen)
+do $$
+begin
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'courses') then
+        drop trigger if exists audit_trigger_courses on public.courses;
+        drop trigger if exists audit_courses on public.courses;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'enrollments') then
+        drop trigger if exists audit_trigger_enrollments on public.enrollments;
+        drop trigger if exists audit_enrollments on public.enrollments;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'grades') then
+        drop trigger if exists audit_trigger_grades on public.grades;
+        drop trigger if exists audit_grades on public.grades;
+    end if;
+end $$;
+
+-- Eliminar triggers de notificaciones (solo si las tablas existen)
+do $$
+begin
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'tasks') then
+        drop trigger if exists tasks_notification_trigger on public.tasks;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'grades') then
+        drop trigger if exists grades_notification_trigger on public.grades;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'profiles') then
+        drop trigger if exists trg_profiles_sync_pa on public.profiles;
+    end if;
+end $$;
 
 -- Eliminar trigger de nuevos usuarios
 drop trigger if exists on_auth_user_created on auth.users;
@@ -123,6 +231,34 @@ drop function if exists public.role_rename(uuid, text) cascade;
 drop function if exists public.role_delete(uuid) cascade;
 drop function if exists public.user_role_assign(uuid, text) cascade;
 
+-- Eliminar todas las funciones restantes del esquema public
+do $$
+declare
+    r record;
+begin
+    for r in (
+        select routine_name, routine_schema
+        from information_schema.routines
+        where routine_schema = 'public' and routine_type = 'FUNCTION'
+    ) loop
+        execute format('drop function if exists %I.%I() cascade', r.routine_schema, r.routine_name);
+    end loop;
+end $$;
+
+-- Eliminar todas las vistas del esquema public
+do $$
+declare
+    r record;
+begin
+    for r in (
+        select table_name
+        from information_schema.views
+        where table_schema = 'public'
+    ) loop
+        execute format('drop view if exists public.%I cascade', r.table_name);
+    end loop;
+end $$;
+
 -- =============================================
 -- ELIMINAR TABLAS EN ORDEN CORRECTO
 -- =============================================
@@ -147,6 +283,34 @@ drop table if exists public.tasks cascade;
 drop table if exists public.submissions cascade;
 drop table if exists public.relationships cascade;
 
+-- Eliminar tablas de clases en vivo y sesiones de estudio
+drop table if exists public.live_class_comments cascade;
+drop table if exists public.live_class_attendance cascade;
+drop table if exists public.live_classes cascade;
+drop table if exists public.study_session_participants cascade;
+drop table if exists public.study_sessions cascade;
+
+-- Eliminar tablas de comunicación y discusiones
+drop table if exists public.direct_messages cascade;
+drop table if exists public.course_discussions cascade;
+
+-- Eliminar tablas de grupos y revisiones entre pares
+drop table if exists public.peer_reviews cascade;
+drop table if exists public.task_group_members cascade;
+drop table if exists public.task_groups cascade;
+drop table if exists public.task_progress cascade;
+
+-- Eliminar tablas de métricas y análisis
+drop table if exists public.student_engagement_metrics cascade;
+drop table if exists public.learning_patterns cascade;
+drop table if exists public.academic_risk_alerts cascade;
+drop table if exists public.progress_reports cascade;
+
+-- Eliminar tablas de logros y puntos
+drop table if exists public.student_achievements cascade;
+drop table if exists public.achievements cascade;
+drop table if exists public.student_points cascade;
+
 -- Eliminar tablas de configuración
 drop table if exists public.certificate_templates cascade;
 drop table if exists public.roles cascade;
@@ -158,7 +322,14 @@ drop table if exists public.platform_admins cascade;
 drop table if exists public.memberships cascade;
 
 -- =============================================
--- ELIMINAR ÍNDICES PERSONALIZADOS
+-- ELIMINAR EXTENSIONES PERSONALIZADAS
+-- =============================================
+
+-- Eliminar extensiones creadas (solo si existen)
+drop extension if exists pgcrypto cascade;
+
+-- =============================================
+-- ELIMINAR ÍNDICES, SECUENCIAS Y TIPOS PERSONALIZADOS
 -- =============================================
 
 -- Los índices se eliminan automáticamente con las tablas,
@@ -177,17 +348,87 @@ begin
     end loop;
 end $$;
 
+-- Eliminar secuencias personalizadas
+do $$
+declare
+    r record;
+begin
+    for r in (
+        select sequence_name
+        from information_schema.sequences
+        where sequence_schema = 'public'
+    ) loop
+        execute format('drop sequence if exists public.%I cascade', r.sequence_name);
+    end loop;
+end $$;
+
+-- Eliminar tipos de datos personalizados
+do $$
+declare
+    r record;
+begin
+    for r in (
+        select typname
+        from pg_type t
+        join pg_namespace n on n.oid = t.typnamespace
+        where n.nspname = 'public'
+        and t.typtype = 'e' -- solo enums
+    ) loop
+        execute format('drop type if exists public.%I cascade', r.typname);
+    end loop;
+end $$;
+
 -- =============================================
--- LIMPIAR DATOS DE AUTH (OPCIONAL)
+-- LIMPIAR DATOS DE AUTH Y SISTEMA
 -- =============================================
 
--- ADVERTENCIA: Esto eliminará todos los usuarios
--- Descomenta solo si quieres eliminar usuarios también
+-- ADVERTENCIA: Esto eliminará todos los usuarios y datos del sistema
+-- Descomenta las siguientes líneas solo si quieres un reset COMPLETO
 
+-- Eliminar sesiones y tokens activos
+delete from auth.sessions;
+delete from auth.refresh_tokens;
+delete from auth.mfa_factors;
+delete from auth.mfa_challenges;
+delete from auth.mfa_amr_claims;
+delete from auth.sso_providers;
+delete from auth.sso_domains;
+delete from auth.saml_providers;
+delete from auth.saml_relay_states;
+delete from auth.flow_state;
+delete from auth.identities;
+
+-- Eliminar usuarios (descomenta si quieres eliminar usuarios)
 -- delete from auth.users;
--- delete from auth.identities;
--- delete from auth.sessions;
--- delete from auth.refresh_tokens;
+
+-- Limpiar datos del sistema de realtime (solo si existen)
+do $$
+begin
+    -- Eliminar datos de realtime solo si las tablas existen
+    if exists (select 1 from information_schema.tables where table_schema = 'realtime' and table_name = 'messages') then
+        delete from realtime.messages;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'realtime' and table_name = 'presence') then
+        delete from realtime.presence;
+    end if;
+    if exists (select 1 from information_schema.tables where table_schema = 'realtime' and table_name = 'channels') then
+        delete from realtime.channels;
+    end if;
+end $$;
+
+-- Limpiar logs del sistema (opcional - descomenta si necesitas limpiar logs)
+-- do $$
+-- begin
+--     if exists (select 1 from information_schema.tables where table_schema = 'auth' and table_name = 'audit_log_entries') then
+--         truncate table auth.audit_log_entries;
+--     end if;
+--     if exists (select 1 from information_schema.tables where table_schema = 'supabase_functions' and table_name = 'hooks') then
+--         truncate table supabase_functions.hooks;
+--     end if;
+--     if exists (select 1 from information_schema.tables where table_schema = 'supabase_functions' and table_name = 'migrations') then
+--         truncate table supabase_functions.migrations;
+--     end if;
+-- end $$;
 
 -- =============================================
 -- RESTAURAR CONFIGURACIÓN
@@ -200,20 +441,51 @@ set session_replication_role = default;
 commit;
 
 -- =============================================
--- VERIFICACIÓN DE LIMPIEZA
+-- VERIFICACIÓN DE LIMPIEZA COMPLETA
 -- =============================================
 
 -- Mostrar tablas restantes en public
-select 'Tablas restantes en public:' as info;
+select 'TABLAS RESTANTES EN PUBLIC:' as info;
 select tablename from pg_tables where schemaname = 'public';
 
+-- Mostrar vistas restantes en public
+select 'VISTAS RESTANTES EN PUBLIC:' as info;
+select table_name from information_schema.views where table_schema = 'public';
+
 -- Mostrar funciones restantes en public
-select 'Funciones restantes en public:' as info;
+select 'FUNCIONES RESTANTES EN PUBLIC:' as info;
 select routine_name from information_schema.routines 
 where routine_schema = 'public' and routine_type = 'FUNCTION';
 
--- Mostrar buckets restantes
-select 'Buckets restantes:' as info;
-select id, name from storage.buckets;
+-- Mostrar tipos personalizados restantes
+select 'TIPOS PERSONALIZADOS RESTANTES:' as info;
+select t.typname from pg_type t
+join pg_namespace n on n.oid = t.typnamespace
+where n.nspname = 'public' and t.typtype = 'e';
 
-select '¡Limpieza completa finalizada!' as resultado;
+-- Mostrar secuencias restantes
+select 'SECUENCIAS RESTANTES:' as info;
+select sequence_name from information_schema.sequences where sequence_schema = 'public';
+
+-- Mostrar buckets restantes
+select 'BUCKETS DE STORAGE RESTANTES:' as info;
+select id, name, public from storage.buckets;
+
+-- Mostrar políticas de storage restantes
+select 'POLÍTICAS DE STORAGE RESTANTES:' as info;
+select policyname from pg_policies where schemaname = 'storage';
+
+-- Mostrar objetos de storage restantes
+select 'OBJETOS DE STORAGE RESTANTES:' as info;
+select bucket_id, count(*) as total_objects from storage.objects group by bucket_id;
+
+-- Mostrar usuarios restantes (solo conteo por seguridad)
+select 'USUARIOS RESTANTES:' as info;
+select count(*) as total_users from auth.users;
+
+-- Mostrar sesiones activas restantes
+select 'SESIONES ACTIVAS RESTANTES:' as info;
+select count(*) as total_sessions from auth.sessions;
+
+select '🎉 ¡LIMPIEZA COMPLETA FINALIZADA! 🎉' as resultado;
+select 'Si ves elementos restantes arriba, revisa si son necesarios o si deben eliminarse manualmente.' as nota;

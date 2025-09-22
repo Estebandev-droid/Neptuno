@@ -117,6 +117,7 @@ returns boolean language sql stable security definer set search_path = public as
   )
 $$;
 
+drop function if exists public.get_user_tenants(uuid);
 create or replace function public.get_user_tenants(p_user uuid default auth.uid())
 returns table(tenant_id uuid, role text) language sql stable security definer set search_path = public as $$
   select m.tenant_id, m.role

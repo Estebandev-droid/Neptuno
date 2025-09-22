@@ -385,6 +385,7 @@ end;
 $$;
 
 -- Listar notificaciones por usuario
+drop function if exists get_user_notifications(uuid, uuid, boolean, text, integer, integer);
 create or replace function get_user_notifications(
   p_user_id uuid,
   p_tenant_id uuid default null,
@@ -510,6 +511,7 @@ end;
 $$;
 
 -- Obtener templates de certificados
+drop function if exists get_certificate_templates(uuid, boolean, integer, integer);
 create or replace function get_certificate_templates(
   p_tenant_id uuid default null,
   p_is_active boolean default null,
@@ -647,7 +649,57 @@ begin
   return v_membership_id;
 end; $$;
 
+-- Revocar rol de usuario
+create or replace function public.user_role_revoke(p_user uuid, p_role_name text, p_tenant_id uuid default null)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_tenant_id is null then
+    -- Actualizar rol global en profiles
+    update public.profiles 
+    set role = 'student', updated_at = now()
+    where id = p_user and role = p_role_name;
+  else
+    -- Remover membership específica del tenant
+    update public.memberships 
+    set is_active = false, updated_at = now()
+    where user_id = p_user and tenant_id = p_tenant_id and role = p_role_name;
+  end if;
+end; $$;
+
+-- Listar roles de usuario
+drop function if exists public.user_roles_list(uuid);
+create or replace function public.user_roles_list(p_user uuid)
+returns table(role_name text, tenant_id uuid, tenant_name text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return query
+  select 
+    p.role as role_name,
+    null::uuid as tenant_id,
+    'Global'::text as tenant_name
+  from public.profiles p
+  where p.id = p_user and p.role is not null
+  
+  union all
+  
+  select 
+    m.role as role_name,
+    m.tenant_id,
+    t.name as tenant_name
+  from public.memberships m
+  join public.tenants t on t.id = m.tenant_id
+  where m.user_id = p_user and m.is_active = true;
+end; $$;
+
 -- Obtener memberships de un usuario
+drop function if exists public.get_user_memberships(uuid);
 create or replace function public.get_user_memberships(p_user_id uuid)
 returns table (
   membership_id uuid,
@@ -1589,6 +1641,116 @@ begin
   );
 
   return v_result;
+end;
+$$;
+
+-- =============================================
+-- FUNCIONES RPC PARA MANEJO DE ROLES
+-- =============================================
+
+-- Listar roles disponibles (basado en memberships)
+drop function if exists public.list_available_roles();
+create or replace function public.list_available_roles()
+returns table(role_name text, description text, usage_count bigint)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return query
+  select 
+    r.role_name,
+    case r.role_name
+      when 'owner' then 'Propietario del tenant'
+      when 'admin' then 'Administrador del tenant'
+      when 'teacher' then 'Profesor'
+      when 'student' then 'Estudiante'
+      when 'parent' then 'Padre/Tutor'
+      when 'viewer' then 'Observador'
+    end as description,
+    count(m.id)::bigint as usage_count
+  from unnest(array['owner', 'admin', 'teacher', 'student', 'parent', 'viewer']) with ordinality as r(role_name, ord)
+  left join public.memberships m
+    on m.role = r.role_name
+   and m.is_active = true
+  group by r.role_name, r.ord
+  order by r.ord;
+end;
+$$;
+
+-- Crear o actualizar rol de usuario en un tenant
+create or replace function public.role_create_membership(
+  p_user_id uuid,
+  p_tenant_id uuid,
+  p_role_name text,
+  p_permissions jsonb default '{}'
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_membership_id uuid;
+begin
+  -- Validar que el rol sea válido
+  if p_role_name not in ('owner', 'admin', 'teacher', 'student', 'parent', 'viewer') then
+    raise exception 'Rol inválido: %', p_role_name;
+  end if;
+
+  -- Crear o actualizar membership
+  insert into public.memberships (user_id, tenant_id, role, permissions)
+  values (p_user_id, p_tenant_id, p_role_name, p_permissions)
+  on conflict (user_id, tenant_id)
+  do update set
+    role = excluded.role,
+    permissions = excluded.permissions,
+    updated_at = now()
+  returning id into v_membership_id;
+
+  return v_membership_id;
+end;
+$$;
+
+-- Eliminar membership (desactivar)
+create or replace function public.role_delete_membership(
+  p_user_id uuid,
+  p_tenant_id uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.memberships
+  set is_active = false, updated_at = now()
+  where user_id = p_user_id and tenant_id = p_tenant_id;
+  
+  return found;
+end;
+$$;
+
+-- Obtener estadísticas de roles
+create or replace function public.get_role_statistics()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_result jsonb;
+begin
+  select jsonb_object_agg(role, count)
+  into v_result
+  from (
+    select role, count(*) as count
+    from public.memberships
+    where is_active = true
+    group by role
+  ) stats;
+  
+  return coalesce(v_result, '{}');
 end;
 $$;
 
