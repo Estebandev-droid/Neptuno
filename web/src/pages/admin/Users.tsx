@@ -239,8 +239,8 @@ function UserCard({
         <div className="border-t border-light/10 pt-3">
           <p className="text-sm text-light/70 mb-2">Roles asignados:</p>
           <div className="flex flex-wrap gap-2">
-            {userRoles.map((r: string) => (
-              <div key={r} className="flex items-center gap-1 px-2 py-1 rounded-lg glass-nav-item text-sm">
+            {userRoles.map((r: string, index: number) => (
+              <div key={`${r}-${index}`} className="flex items-center gap-1 px-2 py-1 rounded-lg glass-nav-item text-sm">
                 <span>{r}</span>
                 <button 
                   className="text-red-400 hover:text-red-300 ml-1"

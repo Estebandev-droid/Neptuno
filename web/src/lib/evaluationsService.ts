@@ -330,7 +330,7 @@ export async function getEvaluationAttempts(evaluationId: string, studentId?: st
     .from('evaluation_attempts')
     .select(`
       *,
-      profiles!evaluation_attempts_student_id_fkey(full_name, email)
+      profiles_with_email!evaluation_attempts_student_id_fkey(full_name, email)
     `)
     .eq('evaluation_id', evaluationId)
     .order('attempt_number', { ascending: false })
@@ -379,7 +379,7 @@ export async function getEvaluationResults(evaluationId: string) {
     .from('evaluation_attempts')
     .select(`
       *,
-      profiles!evaluation_attempts_student_id_fkey(full_name, email),
+      profiles_with_email!evaluation_attempts_student_id_fkey(full_name, email),
       evaluations(title, max_score, passing_score)
     `)
     .eq('evaluation_id', evaluationId)

@@ -2,6 +2,30 @@ import { supabase } from './supabaseClient'
 import type { Tenant, CreateTenantRequest, UpdateTenantRequest, TenantAdmin, AssignAdminRequest } from '../types/tenants'
 import type { Profile } from '../types/users'
 
+// Tipos fuertes para eliminar 'any'
+type MembershipAdminRow = {
+  id: string
+  user_id: string
+  tenant_id: string
+  role: 'owner' | 'admin'
+  permissions: Record<string, unknown>
+  is_active: boolean
+  joined_at: string
+}
+
+type ProfileSummary = {
+  id: string
+  email: string | null
+  full_name: string | null
+  avatar_url: string | null
+}
+
+type ExistingMembership = {
+  id: string
+  role: 'owner' | 'admin' | 'teacher' | 'student' | 'parent' | 'viewer'
+  is_active: boolean
+}
+
 export async function listTenants(): Promise<Tenant[]> {
   console.log('Consultando tenants...')
   
@@ -114,92 +138,141 @@ export async function listTenantAdmins(tenantId: string): Promise<TenantAdmin[]>
   console.log('Consultando administradores del tenant:', tenantId)
   
   const { data, error } = await supabase
-    .from('profiles')
+    .from('memberships')
     .select(`
       id,
+      user_id,
       tenant_id,
-      email,
-      full_name,
-      avatar_url,
       role,
-      created_at
+      permissions,
+      is_active,
+      joined_at
     `)
     .eq('tenant_id', tenantId)
-    .eq('role', 'tenant_admin')
-    .order('created_at', { ascending: false })
+    .eq('is_active', true)
+    .in('role', ['owner', 'admin'])
+    .order('joined_at', { ascending: false })
   
   if (error) {
-    console.error('Error al consultar administradores del tenant:', error)
+    console.error('Error al consultar administradores del tenant (memberships):', error)
     throw error
   }
   
-  // Transformar los datos al formato esperado
-  const admins = data?.map(profile => ({
-    id: profile.id,
-    tenant_id: profile.tenant_id,
-    user_id: profile.id,
-    permissions: ['read', 'write', 'manage_users'], // Permisos por defecto
-    created_at: profile.created_at,
-    user: {
-      id: profile.id,
-      email: profile.email,
-      full_name: profile.full_name,
-      avatar_url: profile.avatar_url
+  const memberships: MembershipAdminRow[] = (data as MembershipAdminRow[]) || []
+  if (memberships.length === 0) return []
+  
+  // Obtener perfiles de los usuarios para hidratar los datos
+  const userIds: string[] = Array.from(new Set(memberships.map(m => m.user_id)))
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles_with_email')
+    .select('id, email, full_name, avatar_url')
+    .in('id', userIds)
+  
+  if (profilesError) {
+    console.error('Error al obtener perfiles para administradores del tenant:', profilesError)
+    throw profilesError
+  }
+  
+  const profilesMap: Map<string, ProfileSummary> = new Map(
+    ((profiles as ProfileSummary[]) ?? []).map(p => [p.id, p])
+  )
+  
+  const admins: TenantAdmin[] = memberships.map(m => {
+    const p = profilesMap.get(m.user_id)
+    return {
+      id: m.id,
+      tenant_id: m.tenant_id,
+      user_id: m.user_id,
+      permissions: ['read', 'write', 'manage_users'],
+      created_at: m.joined_at,
+      user: p
+        ? {
+            id: p.id,
+            email: p.email ?? '',
+            full_name: p.full_name ?? '',
+            avatar_url: p.avatar_url ?? undefined,
+          }
+        : undefined,
     }
-  })) || []
+  })
   
   console.log('Administradores encontrados:', admins.length, admins)
-  return admins as TenantAdmin[]
+  return admins
 }
 
 export async function assignTenantAdmin(assignData: AssignAdminRequest): Promise<void> {
-  console.log('Asignando administrador al tenant:', assignData)
+  console.log('Asignando administrador al tenant (memberships):', assignData)
   
-  const { error } = await supabase
-    .from('profiles')
-    .update({
-      tenant_id: assignData.tenant_id,
-      role: 'tenant_admin',
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', assignData.user_id)
+  // Buscar si ya existe una membership (activa o inactiva)
+  const { data: existing, error: findError } = await supabase
+    .from('memberships')
+    .select('id, role, is_active')
+    .eq('user_id', assignData.user_id)
+    .eq('tenant_id', assignData.tenant_id)
+    .maybeSingle()
   
-  if (error) {
-    console.error('Error al asignar administrador al tenant:', error)
-    throw error
+  if (findError) {
+    console.error('Error buscando membership existente:', findError)
+    throw findError
   }
   
-  console.log('Administrador asignado correctamente')
+  if (existing) {
+    const em = existing as ExistingMembership
+    const { error: updateError } = await supabase
+      .from('memberships')
+      .update({ role: 'admin', is_active: true, updated_at: new Date().toISOString() })
+      .eq('id', em.id)
+    
+    if (updateError) {
+      console.error('Error al actualizar membership para asignar admin:', updateError)
+      throw updateError
+    }
+  } else {
+    const { error: insertError } = await supabase
+      .from('memberships')
+      .insert({
+        user_id: assignData.user_id,
+        tenant_id: assignData.tenant_id,
+        role: 'admin',
+        permissions: {},
+        is_active: true,
+      })
+    
+    if (insertError) {
+      console.error('Error al crear membership para asignar admin:', insertError)
+      throw insertError
+    }
+  }
+  
+  console.log('Administrador asignado correctamente (memberships)')
 }
 
-export async function removeTenantAdmin(userId: string): Promise<void> {
-  console.log('Removiendo administrador del tenant:', userId)
+export async function removeTenantAdmin(tenantId: string, userId: string): Promise<void> {
+  console.log('Removiendo administrador del tenant (memberships):', { tenantId, userId })
   
+  // Solo degradar si actualmente es admin; no degradar owners
   const { error } = await supabase
-    .from('profiles')
-    .update({
-      tenant_id: null,
-      role: 'student', // Rol por defecto
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', userId)
+    .from('memberships')
+    .update({ role: 'student', updated_at: new Date().toISOString() })
+    .eq('tenant_id', tenantId)
+    .eq('user_id', userId)
+    .eq('role', 'admin')
   
   if (error) {
     console.error('Error al remover administrador del tenant:', error)
     throw error
   }
   
-  console.log('Administrador removido correctamente')
+  console.log('Administrador removido correctamente (memberships)')
 }
 
-// Obtener usuarios disponibles para asignar como administradores
 export async function getAvailableUsers(): Promise<Profile[]> {
   console.log('Consultando usuarios disponibles para asignar como administradores...')
   
   const { data, error } = await supabase
-    .from('profiles')
+    .from('profiles_with_email')
     .select('id, email, full_name, avatar_url, role, tenant_id')
-    .in('role', ['teacher', 'student']) // Solo usuarios que pueden ser promovidos
+    .in('role', ['teacher', 'student'])
     .order('full_name', { ascending: true })
   
   if (error) {
@@ -208,7 +281,7 @@ export async function getAvailableUsers(): Promise<Profile[]> {
   }
   
   console.log('Usuarios disponibles:', data?.length || 0)
-  return data || []
+  return (data as Profile[]) || []
 }
 
 export async function uploadTenantLogo(file: File, tenantId: string): Promise<string> {

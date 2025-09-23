@@ -754,7 +754,7 @@ end; $$;
 -- =============================================
 
 -- Función para crear usuarios desde el panel de administración
--- SIN causar auto-login del usuario creado
+-- Esta función solo actualiza el perfil después de que el usuario sea creado en auth.users
 CREATE OR REPLACE FUNCTION public.create_user_admin(
   p_email text,
   p_password text,
@@ -770,9 +770,8 @@ SET search_path = public
 LANGUAGE plpgsql AS $$
 DECLARE
   v_user_id uuid;
-  v_role_id uuid;
   v_tenant_id uuid;
-  v_result jsonb;
+  v_existing_user uuid;
 BEGIN
   -- Validar que el usuario actual sea admin
   IF NOT public.is_platform_admin(auth.uid()) AND NOT public.has_role('super_admin', auth.uid()) THEN
@@ -814,31 +813,29 @@ BEGIN
     );
   END IF;
 
-  -- Generar UUID para el nuevo usuario
-  v_user_id := gen_random_uuid();
-
-  -- Crear perfil en public.profiles
-  INSERT INTO public.profiles (
-    id, full_name, signature_url, avatar_url, tenant_id, role
-  ) VALUES (
-    v_user_id, p_full_name, p_signature_url, p_photo_url, v_tenant_id, p_role_name
-  );
-
-  -- Crear membership
-  INSERT INTO public.memberships (user_id, tenant_id, role, is_active)
-  VALUES (v_user_id, v_tenant_id, p_role_name, true);
-
-  -- Si es admin, agregarlo a platform_admins
-  IF p_role_name IN ('admin', 'super_admin', 'tenant_admin') THEN
-    INSERT INTO public.platform_admins (user_id)
-    VALUES (v_user_id)
-    ON CONFLICT (user_id) DO NOTHING;
+  -- Verificar si el usuario ya existe
+  SELECT id INTO v_existing_user FROM auth.users WHERE email = p_email;
+  IF v_existing_user IS NOT NULL THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Ya existe un usuario con este email'
+    );
   END IF;
 
+  -- Esta función valida los datos y retorna la configuración para crear el usuario
+  -- El frontend usará supabase.auth.signUp() con estos datos validados
   RETURN jsonb_build_object(
     'success', true,
-    'user_id', v_user_id,
-    'message', 'Usuario creado exitosamente. Debe configurar su cuenta usando la API de administración de Supabase.'
+    'validated_data', jsonb_build_object(
+      'email', lower(trim(p_email)),
+      'full_name', coalesce(p_full_name, split_part(p_email, '@', 1)),
+      'role', p_role_name,
+      'phone', p_phone,
+      'signature_url', p_signature_url,
+      'photo_url', p_photo_url,
+      'tenant_id', v_tenant_id
+    ),
+    'message', 'Datos validados correctamente. Proceder con signUp.'
   );
 
 EXCEPTION

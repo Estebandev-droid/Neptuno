@@ -29,86 +29,89 @@ export async function createUser(
   signatureUrl?: string,
   photoUrl?: string
 ) {
-  // IMPORTANTE: Esta función NO debe causar auto-login del usuario creado
-  // Solo crea el perfil y asigna roles, sin afectar la sesión actual del admin
-  console.log('Creando usuario:', { email, fullName, roleName, phone })
-  
   try {
-    // Limpiar/normalizar email (eliminar caracteres invisibles y espacios alrededor)
-    const cleanEmail = email
-      ?.replace(/[\u200B-\u200D\uFEFF]/g, '') // quita zero-width chars
-      .trim()
-      .toLowerCase()
-
-    // Validaciones obligatorias
-    if (!cleanEmail) {
-      throw new Error('El email es obligatorio para crear usuarios')
-    }
-    if (/\s/.test(cleanEmail)) {
-      throw new Error('El correo no debe contener espacios')
-    }
-    if (!password || password.length < 6) {
-      throw new Error('La contraseña es obligatoria y debe tener al menos 6 caracteres')
+    const cleanEmail = email.trim().toLowerCase()
+    
+    // Validaciones básicas
+    if (!cleanEmail || !password) {
+      throw new Error('Email y contraseña son requeridos')
     }
 
-    // Validación de formato de email
+    if (password.length < 6) {
+      throw new Error('La contraseña debe tener al menos 6 caracteres')
+    }
+
+    // Validar formato de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(cleanEmail)) {
-      throw new Error('Por favor ingresa un email válido (ejemplo: usuario@dominio.com)')
+      throw new Error('Formato de email inválido')
     }
 
-    // Evitar ciertos dominios temporales comunes (ejemplo)
-    const tempDomains = ['example.com', 'test.com', 'temp.com']
-    const domain = cleanEmail.split('@')[1]?.toLowerCase()
-    if (tempDomains.includes(domain)) {
-      throw new Error('No se permiten emails de dominios temporales')
+    // Verificar usuario actual
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    if (!currentUser) {
+      throw new Error('Usuario no autenticado')
     }
 
-    // SOLUCIÓN AL AUTO-LOGIN:
-    // En lugar de usar signUp (que crea sesión), usamos la API de administración
-    // Para desarrollo, creamos directamente el perfil y rol sin tocar auth.users
-    
-    // Verificar si el usuario ya existe
-    const { data: existingProfile } = await supabase
+    // Verificar permisos del usuario actual
+    const { data: currentProfile } = await supabase
       .from('profiles')
-      .select('id, email')
-      .eq('email', cleanEmail)
+      .select('role')
+      .eq('id', currentUser.id)
       .single()
 
-    if (existingProfile) {
-      throw new Error('Ya existe un usuario con este email')
+    if (!currentProfile || !['admin', 'super_admin', 'platform_admin', 'tenant_admin'].includes(currentProfile.role)) {
+      throw new Error('No tienes permisos para crear usuarios')
     }
 
-    // Crear usuario usando función RPC que no causa auto-login
-    const { data, error } = await supabase.rpc('create_user_admin', {
-      p_email: cleanEmail,
-      p_password: password,
-      p_full_name: fullName?.trim() || cleanEmail.split('@')[0],
-      p_role_name: roleName,
-      p_phone: phone,
-      p_signature_url: signatureUrl,
-      p_photo_url: photoUrl,
+    // Crear usuario usando la API estándar de Supabase
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: cleanEmail,
+      password: password,
+      options: {
+        data: {
+          full_name: fullName?.trim() || cleanEmail.split('@')[0],
+          role: roleName,
+          phone: phone,
+          signature_url: signatureUrl,
+          photo_url: photoUrl,
+        }
+      }
     })
 
-    if (error) {
-      console.error('Error en create_user_admin:', error)
-      throw new Error(`Error al crear usuario: ${error.message}`)
+    if (authError) {
+      console.error('Error al crear usuario:', authError)
+      throw new Error(`Error al crear usuario: ${authError.message}`)
     }
 
-    if (!data?.success) {
-      console.error('Error en create_user_admin:', data?.error)
-      throw new Error(`Error al crear usuario: ${data?.error || 'desconocido'}`)
+    if (!authData.user) {
+      throw new Error('Error al crear usuario')
     }
 
-    console.log('Usuario creado exitosamente sin auto-login:', data)
+    // El trigger handle_new_user() creará automáticamente el perfil
+    // Esperar un momento para que se ejecute el trigger
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    // Actualizar información adicional si es necesario
+    if (signatureUrl || photoUrl || (roleName && roleName !== 'student')) {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          signature_url: signatureUrl,
+          avatar_url: photoUrl,
+          role: roleName,
+        })
+        .eq('id', authData.user.id)
+
+      if (updateError) {
+        console.warn('Error actualizando perfil:', updateError)
+        // No lanzar error aquí ya que el usuario fue creado exitosamente
+      }
+    }
+
+    console.log('Usuario creado exitosamente:', authData.user)
     return {
-      user: {
-        id: data.user_id,
-        email: data.email,
-        user_metadata: {
-          full_name: data.full_name,
-        },
-      },
+      user: authData.user,
     }
   } catch (error) {
     console.error('Error en createUser:', error)

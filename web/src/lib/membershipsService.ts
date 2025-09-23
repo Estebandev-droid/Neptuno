@@ -187,8 +187,10 @@ export async function listTenantMemberships(tenantId: string): Promise<Membershi
   // 2) Como no existe una FK directa memberships.user_id -> profiles.id en el esquema,
   //    obtenemos los perfiles en una consulta separada y los combinamos manualmente.
   const userIds = Array.from(new Set(memberships.map(m => m.user_id)))
+  
+  // Usar la vista profiles_with_email que combina profiles con auth.users.email
   const { data: profiles, error: profilesError } = await supabase
-    .from('profiles')
+    .from('profiles_with_email')
     .select('id, email, full_name, avatar_url')
     .in('id', userIds)
 

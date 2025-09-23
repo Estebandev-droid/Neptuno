@@ -129,7 +129,7 @@ export default function TenantsPage() {
   })
 
   const removeAdminMut = useMutation({
-    mutationFn: (userId: string) => removeTenantAdmin(userId),
+    mutationFn: ({ tenantId, userId }: { tenantId: string; userId: string }) => removeTenantAdmin(tenantId, userId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tenant-admins', selectedTenant?.id] })
       qc.invalidateQueries({ queryKey: ['available-users'] })
@@ -480,8 +480,8 @@ export default function TenantsPage() {
                       </div>
                       <button
                         onClick={() => {
-                          if (confirm('¿Remover este administrador?')) {
-                            removeAdminMut.mutate(admin.user_id)
+                          if (confirm('¿Remover este administrador?') && selectedTenant) {
+                            removeAdminMut.mutate({ tenantId: selectedTenant.id, userId: admin.user_id })
                           }
                         }}
                         className="text-red-400 hover:text-red-300"

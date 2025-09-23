@@ -34,12 +34,12 @@ export async function listRelationships(): Promise<RelationshipWithDetails[]> {
   const studentIds = [...new Set(data.map(r => r.student_id))]
   
   const { data: parentProfiles, error: parentError } = await supabase
-    .from('profiles')
+    .from('profiles_with_email')
     .select('id, email, full_name, avatar_url, role')
     .in('id', parentIds)
 
   const { data: studentProfiles, error: studentError } = await supabase
-    .from('profiles')
+    .from('profiles_with_email')
     .select('id, email, full_name, avatar_url, role')
     .in('id', studentIds)
 
@@ -241,7 +241,7 @@ export async function getAvailableParents(): Promise<ParentStudentOption[]> {
   console.log('Consultando padres disponibles...')
   
   const { data, error } = await supabase
-    .from('profiles')
+    .from('profiles_with_email')
     .select('id, email, full_name, avatar_url, role')
     .eq('role', 'parent')
     .eq('is_active', true)
@@ -264,7 +264,7 @@ export async function getAvailableStudents(): Promise<ParentStudentOption[]> {
   console.log('Consultando estudiantes disponibles...')
   
   const { data, error } = await supabase
-    .from('profiles')
+    .from('profiles_with_email')
     .select('id, email, full_name, avatar_url, role')
     .eq('role', 'student')
     .eq('is_active', true)

@@ -35,7 +35,7 @@ export const certificatesService = {
       .select(`
         *,
         courses(title, description),
-        profiles(full_name, email)
+        profiles_with_email(full_name, email)
       `)
       .order('issued_at', { ascending: false });
 
@@ -71,7 +71,7 @@ export const certificatesService = {
       .select(`
         *,
         courses(title, description),
-        profiles(full_name, email)
+        profiles_with_email(full_name, email)
       `)
       .eq('id', id)
       .single();
