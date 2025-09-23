@@ -7,11 +7,11 @@ import {
   createEvaluationQuestion,
   type Evaluation,
   type EvaluationWithInstructor
-} from '../lib/evaluationsService'
-import { useCourses } from '../hooks/useCourses'
-import { useAuth } from '../hooks/useAuth'
-import { useTenant } from '../hooks/useTenant'
-import QuestionForm, { type Question } from '../components/QuestionForm'
+} from '../../lib/evaluationsService'
+import { useCourses } from '../../hooks/useCourses'
+import { useAuth } from '../../hooks/useAuth'
+import { useTenant } from '../../hooks/useTenant'
+import QuestionForm, { type Question } from '../../components/QuestionForm'
 
 interface EvaluationWithStats extends EvaluationWithInstructor {
   student_count: number

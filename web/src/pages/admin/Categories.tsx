@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { Category } from '../types/categories'
-import { listCategories, createCategory, setCategoryActive } from '../lib/categoriesService'
-import { updateCategoryName, deleteCategory } from '../lib/categoriesService'
-import type { PagedResult } from '../lib/categoriesService'
+import type { Category } from '../../types/categories'
+import { listCategories, createCategory, setCategoryActive } from '../../lib/categoriesService'
+import { updateCategoryName, deleteCategory } from '../../lib/categoriesService'
+import type { PagedResult } from '../../lib/categoriesService'
 
 export default function CategoriesPage() {
   const qc = useQueryClient()

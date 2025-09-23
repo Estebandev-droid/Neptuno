@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { listRoles } from '../lib/rolesService'
+import { listRoles } from '../../lib/rolesService'
 
 export default function RolesPage() {
   const { data: roles, isLoading, error } = useQuery({ queryKey: ['roles'], queryFn: listRoles })

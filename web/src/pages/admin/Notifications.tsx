@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Bell, Plus, Trash2, X, Check, Filter, CheckCheck } from 'lucide-react';
-import { notificationsService } from '../lib/notificationsService';
-import type { Notification, CreateNotificationRequest, NotificationFilters } from '../types/notifications';
-import { useAuth } from '../hooks/useAuth';
+import { notificationsService } from '../../lib/notificationsService';
+import type { Notification, CreateNotificationRequest, NotificationFilters } from '../../types/notifications';
+import { useAuth } from '../../hooks/useAuth';
 
 const Notifications: React.FC = () => {
   const { user } = useAuth();
@@ -200,13 +200,10 @@ const Notifications: React.FC = () => {
               <label className="block text-sm font-medium text-light/80 mb-2">Estado</label>
               <select
                 value={filters.is_read === undefined ? 'all' : filters.is_read ? 'read' : 'unread'}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setFilters(prev => ({
-                    ...prev,
-                    is_read: value === 'all' ? undefined : value === 'read'
-                  }));
-                }}
+                onChange={(e) => setFilters((prev: NotificationFilters) => ({
+                  ...prev,
+                  is_read: e.target.value === 'all' ? undefined : e.target.value === 'read'
+                }))}
                 className="glass-input w-full px-3 py-2 rounded-lg"
               >
                 <option value="all">Todas</option>
@@ -218,7 +215,7 @@ const Notifications: React.FC = () => {
               <label className="block text-sm font-medium text-light/80 mb-2">Tipo</label>
               <select
               value={filters.type || ''}
-              onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value as 'system' | 'academic' | 'info' | undefined }))}
+              onChange={(e) => setFilters((prev: NotificationFilters) => ({ ...prev, type: e.target.value as 'system' | 'academic' | 'info' | undefined }))}
               className="glass-input px-3 py-2 rounded-lg"
             >
               <option value="">Todos los tipos</option>

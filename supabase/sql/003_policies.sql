@@ -276,7 +276,8 @@ CREATE POLICY "profiles_select_policy" ON public.profiles
     public.is_platform_admin() OR 
     public.has_role('superadmin') OR
     public.has_role('developer') OR
-    public.has_membership_role(tenant_id, 'tenant_admin')
+    public.has_membership_role(tenant_id, 'admin') OR
+    public.has_membership_role(tenant_id, 'owner')
   );
 
 DROP POLICY IF EXISTS "profiles_update_policy" ON public.profiles;

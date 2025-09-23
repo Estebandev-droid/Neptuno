@@ -116,11 +116,22 @@ END $$;
 
 -- 6) Crear memberships para usuarios existentes
 -- Esto asigna memberships a usuarios que ya tienen profiles con tenant_id
+-- NOTA: Con el nuevo sistema automático, esto solo es necesario para migración de datos existentes
 DO $$
 DECLARE
   v_profile RECORD;
   v_tenant_id uuid;
 BEGIN
+  -- Obtener el tenant por defecto
+  SELECT id INTO v_tenant_id FROM public.tenants WHERE domain = 'demo.neptuno.edu' LIMIT 1;
+  
+  -- Si no existe, crear el tenant por defecto
+  IF v_tenant_id IS NULL THEN
+    INSERT INTO public.tenants (id, name, domain, is_active)
+    VALUES (gen_random_uuid(), 'Demo Neptuno', 'demo.neptuno.edu', true)
+    RETURNING id INTO v_tenant_id;
+  END IF;
+  
   -- Migrar usuarios existentes con tenant_id a memberships
   FOR v_profile IN 
     SELECT id, tenant_id, role 
@@ -131,7 +142,7 @@ BEGIN
     INSERT INTO public.memberships (user_id, tenant_id, role, is_active)
     VALUES (
       v_profile.id, 
-      v_profile.tenant_id, 
+      COALESCE(v_profile.tenant_id, v_tenant_id), -- Usar tenant por defecto si es null
       CASE 
         WHEN v_profile.role = 'super_admin' THEN 'owner'
         WHEN v_profile.role = 'tenant_admin' THEN 'admin'
@@ -145,9 +156,12 @@ BEGIN
     ON CONFLICT (user_id, tenant_id) DO NOTHING;
   END LOOP;
   
-  -- Crear membership para el superadmin en el tenant demo
-  SELECT id INTO v_tenant_id FROM public.tenants WHERE domain = 'demo.neptuno.edu' LIMIT 1;
+  -- Asegurar que todos los profiles tengan tenant_id asignado
+  UPDATE public.profiles 
+  SET tenant_id = v_tenant_id 
+  WHERE tenant_id IS NULL;
   
+  -- Crear membership para el superadmin en el tenant demo
   IF v_tenant_id IS NOT NULL THEN
     INSERT INTO public.memberships (user_id, tenant_id, role, is_active)
     SELECT 

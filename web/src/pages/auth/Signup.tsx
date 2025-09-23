@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../../hooks/useAuth'
 import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 
 export default function Signup() {

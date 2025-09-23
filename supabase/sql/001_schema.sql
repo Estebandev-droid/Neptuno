@@ -397,13 +397,49 @@ for each row execute function public.set_updated_at();
 -- =============================================
 create or replace function public.handle_new_user()
 returns trigger as $$
+declare
+  v_tenant_id uuid;
+  v_default_role text := 'student';
 begin
-  insert into public.profiles (id, full_name, role)
+  -- Obtener el tenant por defecto (demo.neptuno.edu)
+  select id into v_tenant_id 
+  from public.tenants 
+  where domain = 'demo.neptuno.edu' 
+  limit 1;
+  
+  -- Si no existe el tenant por defecto, usar el primer tenant disponible
+  if v_tenant_id is null then
+    select id into v_tenant_id 
+    from public.tenants 
+    where is_active = true 
+    order by created_at asc 
+    limit 1;
+  end if;
+  
+  -- Crear el perfil del usuario
+  insert into public.profiles (id, full_name, role, tenant_id)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'full_name', new.email),
-    coalesce(new.raw_user_meta_data->>'role', 'student')
+    coalesce(new.raw_user_meta_data->>'role', v_default_role),
+    v_tenant_id
   );
+  
+  -- Crear la membresía automáticamente si hay un tenant disponible
+  if v_tenant_id is not null then
+    insert into public.memberships (user_id, tenant_id, role, is_active)
+    values (
+      new.id,
+      v_tenant_id,
+      coalesce(new.raw_user_meta_data->>'role', v_default_role),
+      true
+    )
+    on conflict (user_id, tenant_id) do update set
+      role = excluded.role,
+      is_active = true,
+      updated_at = now();
+  end if;
+  
   return new;
 end;
 $$ language plpgsql security definer;

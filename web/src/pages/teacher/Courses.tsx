@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { useCourses } from '../hooks/useCourses'
-import { useActiveCategories, useInstructors } from '../hooks/useAppData'
-import type { Course } from '../types/courses'
+import { useCourses } from '../../hooks/useCourses'
+import { useActiveCategories, useInstructors } from '../../hooks/useAppData'
+import type { Course } from '../../types/courses'
 import { Link } from 'react-router-dom'
 
 export default function CoursesPage() {

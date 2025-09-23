@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Task } from '../types/tasks'
-import { listTasks, createTask, updateTask, publishTask, deleteTask, type PagedResult } from '../lib/tasksService'
-import { listCourses } from '../lib/coursesService'
-import type { Course } from '../types/courses'
+import type { Task } from '../../types/tasks'
+import { listTasks, createTask, updateTask, publishTask, deleteTask, type PagedResult } from '../../lib/tasksService'
+import { listCourses } from '../../lib/coursesService'
+import type { Course } from '../../types/courses'
 
 import { PencilIcon, TrashIcon, EyeIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline'
 

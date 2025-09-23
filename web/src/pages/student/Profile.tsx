@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuth } from '../hooks/useAuth'
-import { updateProfile } from '../lib/usersService'
-import { useUser } from '../hooks/useUsers'
+import { useAuth } from '../../hooks/useAuth'
+import { updateProfile } from '../../lib/usersService'
+import { useUser } from '../../hooks/useUsers'
 
 export default function ProfilePage() {
   const { user: authUser } = useAuth()

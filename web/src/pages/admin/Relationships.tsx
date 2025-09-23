@@ -1,20 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { listRelationships, createRelationship, updateRelationship, deleteRelationship, getAvailableParents, getAvailableStudents } from '../lib/relationshipsService'
-import type { RelationshipWithDetails, CreateRelationshipRequest } from '../types/relationships'
+import { listRelationships, createRelationship, updateRelationship, deleteRelationship, getAvailableParents, getAvailableStudents } from '../../lib/relationshipsService'
+import type { RelationshipWithDetails, CreateRelationshipRequest } from '../../types/relationships'
+import type { Profile } from '../../types/users'
 import { PencilIcon, TrashIcon, XMarkIcon, LinkIcon } from '@heroicons/react/24/outline'
 
 export default function RelationshipsPage() {
   const qc = useQueryClient()
-  const { data: relationships, isLoading, error } = useQuery({ 
+  const { data: relationships, isLoading, error } = useQuery<RelationshipWithDetails[], Error>({ 
     queryKey: ['relationships'], 
     queryFn: listRelationships 
   })
-  const { data: availableParents } = useQuery({ 
+  const { data: availableParents } = useQuery<Profile[]>({ 
     queryKey: ['available-parents'], 
     queryFn: getAvailableParents 
   })
-  const { data: availableStudents } = useQuery({ 
+  const { data: availableStudents } = useQuery<Profile[]>({ 
     queryKey: ['available-students'], 
     queryFn: getAvailableStudents 
   })
@@ -111,6 +112,11 @@ export default function RelationshipsPage() {
     rel.parent_id === parentId && rel.student_id === studentId && 
     (!editingRelationship || rel.id !== editingRelationship.id)
   )
+
+  // Fecha de última actualización basada en created_at más reciente
+  const lastUpdateDateStr = relationships && relationships.length > 0
+    ? new Date(Math.max(...relationships.map(r => new Date(r.created_at).getTime()))).toLocaleDateString()
+    : '-'
 
   if (isLoading) return <div className="py-6"><p>Cargando relaciones...</p></div>
   if (error) return <div className="py-6"><p className="text-red-400">Error: {error.message}</p></div>
@@ -271,34 +277,22 @@ export default function RelationshipsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {relationship.relationship_type === 'guardian' ? 'Tutor/Guardián' :
-                         relationship.relationship_type === 'parent' ? 'Padre/Madre' :
-                         relationship.relationship_type === 'relative' ? 'Familiar' :
-                         'Otro'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                      {new Date(relationship.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap">{relationship.relationship_type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{new Date(relationship.created_at).toLocaleString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
+                        <button 
+                          className="glass-nav-item p-2 rounded-lg"
                           onClick={() => handleEdit(relationship)}
-                          className="text-yellow-400 hover:text-yellow-300"
-                          title="Editar tipo de relación"
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
-                        <button
+                        <button 
+                          className="glass-button-danger p-2 rounded-lg"
                           onClick={() => {
-                            if (confirm('¿Estás seguro de desvincular esta relación padre-estudiante?')) {
+                            if (confirm('¿Eliminar esta relación?'))
                               deleteMut.mutate(relationship.id)
-                            }
                           }}
-                          className="text-red-400 hover:text-red-300"
-                          title="Desvincular"
                         >
                           <TrashIcon className="h-4 w-4" />
                         </button>
@@ -310,29 +304,30 @@ export default function RelationshipsPage() {
             </tbody>
           </table>
         </div>
-      </div>
 
-      {/* Estadísticas */}
-      {relationships && relationships.length > 0 && (
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="glass-card p-4 rounded-xl">
-            <div className="text-2xl font-bold text-blue-400">{relationships.length}</div>
-            <div className="text-sm text-gray-400">Total Relaciones</div>
-          </div>
-          <div className="glass-card p-4 rounded-xl">
-            <div className="text-2xl font-bold text-green-400">
-              {new Set(relationships.map(r => r.parent_id)).size}
+        {/* Estadísticas */}
+        <div className="p-6 bg-white/5 border-t border-white/10">
+          <h3 className="text-lg font-semibold mb-4">Estadísticas</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="glass-card p-4 rounded-xl">
+              <div className="text-sm text-gray-400">Total de relaciones</div>
+              <div className="text-2xl font-bold">{relationships?.length ?? 0}</div>
             </div>
-            <div className="text-sm text-gray-400">Padres Vinculados</div>
-          </div>
-          <div className="glass-card p-4 rounded-xl">
-            <div className="text-2xl font-bold text-purple-400">
-              {new Set(relationships.map(r => r.student_id)).size}
+            <div className="glass-card p-4 rounded-xl">
+              <div className="text-sm text-gray-400">Padres únicos</div>
+              <div className="text-2xl font-bold">{new Set(relationships?.map(r => r.parent_id)).size}</div>
             </div>
-            <div className="text-sm text-gray-400">Estudiantes Vinculados</div>
+            <div className="glass-card p-4 rounded-xl">
+              <div className="text-sm text-gray-400">Estudiantes únicos</div>
+              <div className="text-2xl font-bold">{new Set(relationships?.map(r => r.student_id)).size}</div>
+            </div>
+            <div className="glass-card p-4 rounded-xl">
+              <div className="text-sm text-gray-400">Última actualización</div>
+              <div className="text-2xl font-bold">{lastUpdateDateStr}</div>
+            </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }

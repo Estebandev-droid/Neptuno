@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useTenant } from '../hooks/useTenant'
-import { listTenantMemberships, createMembership, updateMembership, deactivateMembership, type Membership } from '../lib/membershipsService'
-import { listProfiles } from '../lib/usersService'
-import { listRoles } from '../lib/rolesService'
-import type { Profile } from '../types/users'
-import type { Role } from '../types/roles'
+import { useTenant } from '../../hooks/useTenant'
+import { listTenantMemberships, createMembership, updateMembership, deactivateMembership, type Membership } from '../../lib/membershipsService'
+import { listProfiles } from '../../lib/usersService'
+import { listRoles } from '../../lib/rolesService'
+import type { Profile } from '../../types/users'
+import type { Role } from '../../types/roles'
 
 export default function MembershipsPage() {
   const qc = useQueryClient()

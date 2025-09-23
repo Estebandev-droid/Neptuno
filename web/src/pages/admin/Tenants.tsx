@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { listTenants, createTenant, updateTenant, deleteTenant, listTenantAdmins, assignTenantAdmin, removeTenantAdmin, getAvailableUsers, uploadTenantLogo } from '../lib/tenantsService'
-import type { Tenant, CreateTenantRequest, UpdateTenantRequest } from '../types/tenants'
+import { listTenants, createTenant, updateTenant, deleteTenant, listTenantAdmins, assignTenantAdmin, removeTenantAdmin, getAvailableUsers, uploadTenantLogo } from '../../lib/tenantsService'
+import type { Tenant, CreateTenantRequest, UpdateTenantRequest } from '../../types/tenants'
 import { PencilIcon, TrashIcon, UserPlusIcon, XMarkIcon } from '@heroicons/react/24/outline'
 
 export default function TenantsPage() {

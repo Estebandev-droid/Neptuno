@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import type { Submission } from '../types/submissions'
-import { listSubmissions } from '../lib/submissionsService'
-import { upsertTaskGrade } from '../lib/gradesService'
-import { listTasks } from '../lib/tasksService'
-import type { Task } from '../types/tasks'
+import type { Submission } from '../../types/submissions'
+import { listSubmissions } from '../../lib/submissionsService'
+import { upsertTaskGrade } from '../../lib/gradesService'
+import { listTasks } from '../../lib/tasksService'
+import type { Task } from '../../types/tasks'
 
 export default function SubmissionsPage() {
   const [params, setParams] = useSearchParams()

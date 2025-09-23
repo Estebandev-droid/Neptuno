@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Resource } from '../types/resources'
-import { listResources, createResource, updateResource, deleteResource, uploadResourceFile, type PagedResult } from '../lib/resourcesService'
-import { listCourses } from '../lib/coursesService'
-import type { Course } from '../types/courses'
+import type { Resource } from '../../types/resources'
+import { listResources, createResource, updateResource, deleteResource, uploadResourceFile, type PagedResult } from '../../lib/resourcesService'
+import { listCourses } from '../../lib/coursesService'
+import type { Course } from '../../types/courses'
 import { DocumentTextIcon, VideoCameraIcon, LinkIcon, PhotoIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
-import FilePreview from '../components/FilePreview'
+import FilePreview from '../../components/FilePreview'
 
 const resourceTypeIcons = {
   document: DocumentTextIcon,

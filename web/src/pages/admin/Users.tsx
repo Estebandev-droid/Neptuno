@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useUsers } from '../hooks/useUsers'
-import { useRoles } from '../hooks/useAppData'
-import { getUserRoles } from '../lib/usersService'
-import type { Profile } from '../types/users'
+import { useUsers } from '../../hooks/useUsers'
+import { useRoles } from '../../hooks/useAppData'
+import { getUserRoles } from '../../lib/usersService'
+import type { Profile } from '../../types/users'
 
 export default function UsersPage() {
   const { 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
-import { supabase } from '../lib/supabaseClient'
+import { useAuth } from '../../hooks/useAuth'
+import { supabase } from '../../lib/supabaseClient'
 import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 
 export default function Login() {

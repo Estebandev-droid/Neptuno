@@ -1,11 +1,11 @@
 import { Link, useParams } from 'react-router-dom'
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getCourseById } from '../lib/coursesService'
-import { listCategories } from '../lib/categoriesService'
-import { listProfiles } from '../lib/usersService'
-import type { Category } from '../types/categories'
-import type { Profile } from '../types/users'
+import { getCourseById } from '../../lib/coursesService'
+import { listCategories } from '../../lib/categoriesService'
+import { listProfiles } from '../../lib/usersService'
+import type { Category } from '../../types/categories'
+import type { Profile } from '../../types/users'
 
 export default function CourseDetailPage() {
   const { id } = useParams<{ id: string }>()

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { listCourses } from '../lib/coursesService'
-import type { Course } from '../types/courses'
-import { listProfiles } from '../lib/usersService'
-import type { Profile } from '../types/users'
-import type { Enrollment, EnrollmentStatus } from '../types/enrollments'
-import { listEnrollments, enrollStudent, unenrollStudent, updateEnrollmentStatus, type PagedResult } from '../lib/enrollmentsService'
+import { listCourses } from '../../lib/coursesService'
+import type { Course } from '../../types/courses'
+import { listProfiles } from '../../lib/usersService'
+import type { Profile } from '../../types/users'
+import type { Enrollment, EnrollmentStatus } from '../../types/enrollments'
+import { listEnrollments, enrollStudent, unenrollStudent, updateEnrollmentStatus, type PagedResult } from '../../lib/enrollmentsService'
 
 export default function EnrollmentsPage() {
   const qc = useQueryClient()

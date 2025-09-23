@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Award, Plus, Search, Download, Eye, Trash2, QrCode, FileText, X, Check } from 'lucide-react';
-import { certificatesService } from '../lib/certificatesService';
-import { listCourses } from '../lib/coursesService';
-import { listProfiles } from '../lib/usersService';
-import type { Certificate, CreateCertificateRequest, CertificateFilters, CertificateTemplate } from '../types/certificates';
-import type { Course } from '../types/courses';
-import type { Profile } from '../types/users';
-import { useAuth } from '../hooks/useAuth';
+import { certificatesService } from '../../lib/certificatesService';
+import { listCourses } from '../../lib/coursesService';
+import { listProfiles } from '../../lib/usersService';
+import type { Certificate, CreateCertificateRequest, CertificateFilters, CertificateTemplate } from '../../types/certificates';
+import type { Course } from '../../types/courses';
+import type { Profile } from '../../types/users';
+import { useAuth } from '../../hooks/useAuth';
 
 const Certificates: React.FC = () => {
   const { user } = useAuth();
