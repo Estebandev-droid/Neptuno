@@ -127,8 +127,8 @@ BEGIN
   
   -- Si no existe, crear el tenant por defecto
   IF v_tenant_id IS NULL THEN
-    INSERT INTO public.tenants (id, name, domain, is_active)
-    VALUES (gen_random_uuid(), 'Demo Neptuno', 'demo.neptuno.edu', true)
+    INSERT INTO public.tenants (id, name, domain)
+    VALUES (gen_random_uuid(), 'Demo Neptuno', 'demo.neptuno.edu')
     RETURNING id INTO v_tenant_id;
   END IF;
   

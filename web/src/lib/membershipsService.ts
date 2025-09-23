@@ -188,10 +188,10 @@ export async function listTenantMemberships(tenantId: string): Promise<Membershi
   //    obtenemos los perfiles en una consulta separada y los combinamos manualmente.
   const userIds = Array.from(new Set(memberships.map(m => m.user_id)))
   
-  // Usar la vista profiles_with_email que combina profiles con auth.users.email
+  // Obtener perfiles (sin email, que está en auth.users)
   const { data: profiles, error: profilesError } = await supabase
-    .from('profiles_with_email')
-    .select('id, email, full_name, avatar_url')
+    .from('profiles')
+    .select('id, full_name, avatar_url')
     .in('id', userIds)
 
   if (profilesError) {
@@ -199,7 +199,21 @@ export async function listTenantMemberships(tenantId: string): Promise<Membershi
     throw profilesError
   }
 
-  const profilesMap = new Map((profiles ?? []).map(p => [p.id, p]))
+  // Obtener emails desde auth.users usando la función admin
+  const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers()
+  
+  if (authError) {
+    console.error('Error al obtener usuarios de auth para emails:', authError)
+    // No lanzamos error aquí, solo continuamos sin emails
+  }
+
+  const emailsMap = new Map(
+    (authUsers?.users ?? [])
+      .filter(user => userIds.includes(user.id))
+      .map(user => [user.id, user.email])
+  )
+
+  const profilesMap = new Map((profiles ?? []).map(p => [p.id, { ...p, email: emailsMap.get(p.id) || null }]))
 
   // 3) Devolver memberships con el objeto user hidratado
   return memberships.map(m => ({

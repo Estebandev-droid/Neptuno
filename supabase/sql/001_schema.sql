@@ -130,7 +130,9 @@ create table public.submissions (
   task_id uuid not null references public.tasks(id) on delete cascade,
   student_id uuid not null references auth.users(id) on delete cascade,
   content text,
-  file_url text,
+  file_url text, -- Mantener para compatibilidad
+  file_urls text[], -- Array de URLs para múltiples archivos
+  submission_type text check (submission_type in ('text', 'file', 'mixed')) default 'text',
   submitted_at timestamptz default now(),
   graded_at timestamptz,
   unique(task_id, student_id)
@@ -173,6 +175,7 @@ create table public.grades (
   score numeric(5,2) not null,
   feedback text,
   graded_by uuid references auth.users(id) on delete set null,
+  graded_at timestamptz default now(),
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   check ((evaluation_id is not null and task_id is null) or (evaluation_id is null and task_id is not null))
@@ -309,6 +312,7 @@ create table if not exists public.audit_log (
   action text not null,
   table_name text not null,
   record_id text,
+  tenant_id uuid,
   old_values jsonb,
   new_values jsonb
 );
@@ -412,6 +416,7 @@ begin
     select id into v_tenant_id 
     from public.tenants 
     where is_active = true 
+    -- no filter
     order by created_at asc 
     limit 1;
   end if;
@@ -890,6 +895,133 @@ insert into storage.buckets (id, name, public)
 values ('documents','documents', false)
 on conflict (id) do nothing;
 
-insert into storage.buckets (id, name, public)
-values ('signatures','signatures', false)
-on conflict (id) do nothing;
+-- Legacy bucket 'signatures' removed (use 'user-signatures' with policies in 004_storage.sql)
+
+-- =============================================
+-- ÍNDICES ADICIONALES PARA OPTIMIZACIÓN DE PERFORMANCE
+-- =============================================
+
+-- Índices para notifications (optimizar consultas de notificaciones no leídas)
+create index if not exists idx_notifications_user_unread 
+  on public.notifications(user_id, is_read) 
+  where is_read = false;
+
+create index if not exists idx_notifications_tenant_type 
+  on public.notifications(tenant_id, type, created_at desc);
+
+create index if not exists idx_notifications_created_at 
+  on public.notifications(created_at desc);
+
+-- Índices para submissions (optimizar consultas de entregas por tarea y estudiante)
+create index if not exists idx_submissions_task_student 
+  on public.submissions(task_id, student_id);
+
+create index if not exists idx_submissions_student_submitted 
+  on public.submissions(student_id, submitted_at desc);
+
+create index if not exists idx_submissions_task_submitted 
+  on public.submissions(task_id, submitted_at desc);
+
+-- Índice removido: columna is_late no existe en la tabla submissions
+-- create index if not exists idx_submissions_late_flag 
+--   on public.submissions(is_late, submitted_at) 
+--   where is_late = true;
+
+-- Índices para grades (optimizar consultas de calificaciones por curso y estudiante)
+-- NOTA: La tabla grades no tiene course_id directamente, se accede a través de evaluations o tasks
+-- create index if not exists idx_grades_course_student 
+--   on public.grades(course_id, student_id);
+
+create index if not exists idx_grades_student_graded 
+  on public.grades(student_id, graded_at desc);
+
+create index if not exists idx_grades_task_graded 
+  on public.grades(task_id, graded_at desc);
+
+create index if not exists idx_grades_score_range 
+  on public.grades(score, graded_at desc) 
+  where score is not null;
+
+-- Índices para enrollments (optimizar consultas de inscripciones activas)
+create index if not exists idx_enrollments_course_active 
+  on public.enrollments(course_id, status) 
+  where status = 'active';
+
+create index if not exists idx_enrollments_student_active 
+  on public.enrollments(student_id, status) 
+  where status = 'active';
+
+create index if not exists idx_enrollments_tenant_enrolled 
+  on public.enrollments(tenant_id, enrolled_at desc);
+
+-- Índices para tasks (optimizar consultas de tareas por curso y fecha límite)
+create index if not exists idx_tasks_course_due_date 
+  on public.tasks(course_id, due_date desc nulls last);
+
+-- Removed idx_tasks_due_date_active index because now() is not IMMUTABLE
+-- Alternative: Use application-level filtering for active tasks
+
+create index if not exists idx_tasks_course_created 
+  on public.tasks(course_id, created_at desc);
+
+-- Índices para task_progress (optimizar consultas de progreso de tareas)
+create index if not exists idx_task_progress_student_status 
+  on public.task_progress(student_id, status, last_activity desc);
+
+create index if not exists idx_task_progress_task_status 
+  on public.task_progress(task_id, status, progress_percentage desc);
+
+create index if not exists idx_task_progress_completion 
+  on public.task_progress(progress_percentage, last_activity desc) 
+  where progress_percentage = 100;
+
+-- Índices para evaluations (optimizar consultas de evaluaciones publicadas)
+create index if not exists idx_evaluations_course_published 
+  on public.evaluations(course_id, is_published, start_date desc nulls last) 
+  where is_published = true;
+
+create index if not exists idx_evaluations_date_range 
+  on public.evaluations(start_date, end_date) 
+  where start_date is not null and end_date is not null;
+
+-- Índices para evaluation_attempts (optimizar consultas de intentos de evaluación)
+create index if not exists idx_evaluation_attempts_student_eval 
+  on public.evaluation_attempts(student_id, evaluation_id, attempt_number);
+
+create index if not exists idx_evaluation_attempts_status 
+  on public.evaluation_attempts(evaluation_id, status, started_at desc);
+
+-- Índices para audit_log (optimizar consultas de auditoría)
+create index if not exists idx_audit_log_table_action 
+  on public.audit_log(table_name, action, created_at desc);
+
+create index if not exists idx_audit_log_user_date 
+  on public.audit_log(user_id, created_at desc) 
+  where user_id is not null;
+
+create index if not exists idx_audit_log_tenant_date 
+  on public.audit_log(tenant_id, created_at desc) 
+  where tenant_id is not null;
+
+-- Índices para live_classes (optimizar consultas de clases en vivo)
+create index if not exists idx_live_classes_course_scheduled 
+  on public.live_classes(course_id, scheduled_start desc);
+
+create index if not exists idx_live_classes_instructor_date 
+  on public.live_classes(instructor_id, scheduled_start desc);
+
+create index if not exists idx_live_classes_status_date 
+  on public.live_classes(status, scheduled_start asc) 
+  where status in ('scheduled', 'live');
+
+-- Índices compuestos para consultas complejas frecuentes
+create index if not exists idx_courses_tenant_instructor_active 
+  on public.courses(tenant_id, instructor_id, is_active) 
+  where is_active = true;
+
+create index if not exists idx_resources_course_type_created 
+  on public.resources(course_id, resource_type, created_at desc);
+
+create index if not exists idx_memberships_user_tenant_active 
+  on public.memberships(user_id, tenant_id, is_active) 
+  where is_active = true;

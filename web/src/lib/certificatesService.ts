@@ -71,7 +71,7 @@ export const certificatesService = {
       .select(`
         *,
         courses(title, description),
-        profiles_with_email(full_name, email)
+        profiles(full_name)
       `)
       .eq('id', id)
       .single();

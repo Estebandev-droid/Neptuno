@@ -264,7 +264,7 @@ export async function getAvailableStudents(): Promise<ParentStudentOption[]> {
   console.log('Consultando estudiantes disponibles...')
   
   const { data, error } = await supabase
-    .from('profiles_with_email')
+    .from('profiles')
     .select('id, email, full_name, avatar_url, role')
     .eq('role', 'student')
     .eq('is_active', true)

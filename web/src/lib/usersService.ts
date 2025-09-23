@@ -47,71 +47,41 @@ export async function createUser(
       throw new Error('Formato de email inválido')
     }
 
-    // Verificar usuario actual
-    const { data: { user: currentUser } } = await supabase.auth.getUser()
-    if (!currentUser) {
+    // Usar la función Edge Function admin-create-user para crear usuarios de forma segura
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
       throw new Error('Usuario no autenticado')
     }
 
-    // Verificar permisos del usuario actual
-    const { data: currentProfile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', currentUser.id)
-      .single()
-
-    if (!currentProfile || !['admin', 'super_admin', 'platform_admin', 'tenant_admin'].includes(currentProfile.role)) {
-      throw new Error('No tienes permisos para crear usuarios')
-    }
-
-    // Crear usuario usando la API estándar de Supabase
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: cleanEmail,
-      password: password,
-      options: {
-        data: {
-          full_name: fullName?.trim() || cleanEmail.split('@')[0],
-          role: roleName,
-          phone: phone,
-          signature_url: signatureUrl,
-          photo_url: photoUrl,
-        }
-      }
+    const { data, error } = await supabase.functions.invoke('admin-create-user', {
+      body: {
+        email: cleanEmail,
+        password: password,
+        fullName: fullName?.trim() || cleanEmail.split('@')[0],
+        roleName: roleName,
+        phone: phone,
+        signatureUrl: signatureUrl,
+        photoUrl: photoUrl
+      },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
     })
 
-    if (authError) {
-      console.error('Error al crear usuario:', authError)
-      throw new Error(`Error al crear usuario: ${authError.message}`)
+    if (error) {
+      console.error('Error en createUser Edge Function:', error)
+      throw new Error(`Error al crear usuario: ${error.message}`)
     }
 
-    if (!authData.user) {
-      throw new Error('Error al crear usuario')
+    if (!data || !data.success) {
+      const errorMessage = data?.error || 'Error desconocido al crear usuario'
+      console.error('Error en createUser Edge Function:', errorMessage)
+      throw new Error(`Error al crear usuario: ${errorMessage}`)
     }
 
-    // El trigger handle_new_user() creará automáticamente el perfil
-    // Esperar un momento para que se ejecute el trigger
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // Actualizar información adicional si es necesario
-    if (signatureUrl || photoUrl || (roleName && roleName !== 'student')) {
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          signature_url: signatureUrl,
-          avatar_url: photoUrl,
-          role: roleName,
-        })
-        .eq('id', authData.user.id)
-
-      if (updateError) {
-        console.warn('Error actualizando perfil:', updateError)
-        // No lanzar error aquí ya que el usuario fue creado exitosamente
-      }
-    }
-
-    console.log('Usuario creado exitosamente:', authData.user)
+    console.log('Usuario creado exitosamente:', data)
     return {
-      user: authData.user,
+      user: data.user,
     }
   } catch (error) {
     console.error('Error en createUser:', error)

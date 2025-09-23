@@ -264,98 +264,16 @@ create policy "Profesores y admins pueden ver firmas para certificados"
 -- =============================================
 
 -- Bucket para grabaciones de clases en vivo
-do $$
-begin
-  if not exists (select 1 from storage.buckets where id = 'live-recordings') then
-    insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-    values (
-      'live-recordings',
-      'live-recordings',
-      false, -- Privado por defecto
-      1073741824, -- 1GB por archivo
-      array['video/mp4', 'video/webm', 'video/avi', 'audio/mpeg', 'audio/wav']
-    );
-  end if;
-end $$;
+-- Legacy bucket 'live-recordings' removed (unified into 'media')
 
 -- Bucket para recursos de clases en vivo
-do $$
-begin
-  if not exists (select 1 from storage.buckets where id = 'live-resources') then
-    insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-    values (
-      'live-resources',
-      'live-resources',
-      false, -- Privado por defecto
-      104857600, -- 100MB
-      array[
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-powerpoint',
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'text/plain',
-        'image/jpeg',
-        'image/png',
-        'image/webp',
-        'video/mp4',
-        'video/webm',
-        'audio/mpeg',
-        'audio/wav'
-      ]
-    );
-  end if;
-end $$;
+-- Legacy bucket 'live-resources' removed (unified into 'resource-files')
 
 -- Bucket para avatares HD
-do $$
-begin
-  if not exists (select 1 from storage.buckets where id = 'avatars-hd') then
-    insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-    values (
-      'avatars-hd',
-      'avatares-hd',
-      true, -- Público para mostrar avatares
-      10485760, -- 10MB para alta calidad
-      array['image/jpeg', 'image/png', 'image/webp']
-    );
-  end if;
-end $$;
+-- Legacy bucket 'avatars-hd' removed (use 'user-avatars')
 
 -- Bucket para entregas de tareas multimedia
-do $$
-begin
-  if not exists (select 1 from storage.buckets where id = 'task-submissions') then
-    insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-    values (
-      'task-submissions',
-      'task-submissions',
-      false, -- Privado por defecto
-      209715200, -- 200MB
-      array[
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-powerpoint',
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'text/plain',
-        'image/jpeg',
-        'image/png',
-        'image/webp',
-        'video/mp4',
-        'video/webm',
-        'audio/mpeg',
-        'audio/wav',
-        'application/zip',
-        'application/x-rar-compressed'
-      ]
-    );
-  end if;
-end $$;
+-- Legacy bucket 'task-submissions' removed (unified into 'resource-files')
 
 -- Bucket para certificados personalizados
 do $$
@@ -429,10 +347,9 @@ end $$;
 create policy "Instructors can upload live class recordings"
   on storage.objects for insert
   with check (
-    bucket_id = 'live-recordings'
+    bucket_id = 'media'
     and
     (
-      -- Verificar que el usuario sea instructor de la clase
       exists (
         select 1 from public.live_classes lc
         join public.courses c on c.id = lc.course_id
@@ -440,7 +357,6 @@ create policy "Instructors can upload live class recordings"
           and position(lc.id::text in name) > 0
       )
       or
-      -- Permitir admins
       exists (
         select 1 from public.profiles p
         where p.id = auth.uid()
@@ -460,10 +376,9 @@ create policy "Instructors can upload live class recordings"
 create policy "Users can view relevant live class recordings"
   on storage.objects for select
   using (
-    bucket_id = 'live-recordings'
+    bucket_id = 'media'
     and
     (
-      -- Instructores pueden ver grabaciones de sus clases
       exists (
         select 1 from public.live_classes lc
         join public.courses c on c.id = lc.course_id
@@ -471,7 +386,6 @@ create policy "Users can view relevant live class recordings"
           and position(lc.id::text in name) > 0
       )
       or
-      -- Estudiantes inscritos pueden ver grabaciones
       exists (
         select 1 from public.live_classes lc
         join public.courses c on c.id = lc.course_id
@@ -481,7 +395,6 @@ create policy "Users can view relevant live class recordings"
           and position(lc.id::text in name) > 0
       )
       or
-      -- Padres pueden ver grabaciones de clases de sus hijos
       exists (
         select 1 from public.relationships r
         join public.enrollments e on e.student_id = r.student_id
@@ -498,7 +411,7 @@ create policy "Users can view relevant live class recordings"
 create policy "Instructors can update their live class recordings"
   on storage.objects for update
   using (
-    bucket_id = 'live-recordings'
+    bucket_id = 'media'
     and
     exists (
       select 1 from public.live_classes lc
@@ -508,7 +421,7 @@ create policy "Instructors can update their live class recordings"
     )
   )
   with check (
-    bucket_id = 'live-recordings'
+    bucket_id = 'media'
     and
     exists (
       select 1 from public.live_classes lc
@@ -522,7 +435,7 @@ create policy "Instructors can update their live class recordings"
 create policy "Instructors and admins can delete live class recordings"
   on storage.objects for delete
   using (
-    bucket_id = 'live-recordings'
+    bucket_id = 'media'
     and
     (
       exists (
@@ -555,10 +468,9 @@ create policy "Instructors and admins can delete live class recordings"
 create policy "Instructors can upload live class resources"
   on storage.objects for insert
   with check (
-    bucket_id = 'live-resources'
+    bucket_id = 'resource-files'
     and
     (
-      -- Verificar que el usuario sea instructor del curso
       exists (
         select 1 from public.courses c
         where c.instructor_id = auth.uid()
@@ -579,10 +491,9 @@ create policy "Instructors can upload live class resources"
 create policy "Users can view relevant live class resources"
   on storage.objects for select
   using (
-    bucket_id = 'live-resources'
+    bucket_id = 'resource-files'
     and
     (
-      -- Instructores pueden ver recursos de sus cursos
       exists (
         select 1 from public.courses c
         where c.instructor_id = auth.uid()
@@ -607,10 +518,9 @@ create policy "Users can view relevant live class resources"
 create policy "Students can upload task submissions"
   on storage.objects for insert
   with check (
-    bucket_id = 'task-submissions'
+    bucket_id = 'resource-files'
     and
     (
-      -- Verificar que el estudiante esté inscrito en el curso de la tarea
       exists (
         select 1 from public.tasks t
         join public.enrollments e on e.course_id = t.course_id
@@ -619,7 +529,6 @@ create policy "Students can upload task submissions"
           and position(t.id::text in name) > 0
       )
       or
-      -- Permitir que el nombre contenga el ID del estudiante
       position(auth.uid()::text in name) > 0
     )
   );
@@ -628,13 +537,11 @@ create policy "Students can upload task submissions"
 create policy "Users can view relevant task submissions"
   on storage.objects for select
   using (
-    bucket_id = 'task-submissions'
+    bucket_id = 'resource-files'
     and
     (
-      -- Estudiantes pueden ver sus propias entregas
       position(auth.uid()::text in name) > 0
       or
-      -- Instructores pueden ver entregas de sus cursos
       exists (
         select 1 from public.tasks t
         join public.courses c on c.id = t.course_id
@@ -642,7 +549,6 @@ create policy "Users can view relevant task submissions"
           and position(t.id::text in name) > 0
       )
       or
-      -- Padres pueden ver entregas de sus hijos
       exists (
         select 1 from public.relationships r
         where r.parent_id = auth.uid()
@@ -659,7 +565,7 @@ create policy "Users can view relevant task submissions"
 create policy "Users can upload their own HD avatars"
   on storage.objects for insert
   with check (
-    bucket_id = 'avatars-hd'
+    bucket_id = 'user-avatars'
     and
     position(auth.uid()::text in name) > 0
   );
@@ -667,18 +573,18 @@ create policy "Users can upload their own HD avatars"
 -- Política para ver avatares (público)
 create policy "HD avatars are publicly viewable"
   on storage.objects for select
-  using (bucket_id = 'avatars-hd');
+  using (bucket_id = 'user-avatars');
 
 -- Política para actualizar avatares (usuarios propios)
 create policy "Users can update their own HD avatars"
   on storage.objects for update
   using (
-    bucket_id = 'avatars-hd'
+    bucket_id = 'user-avatars'
     and
     position(auth.uid()::text in name) > 0
   )
   with check (
-    bucket_id = 'avatars-hd'
+    bucket_id = 'user-avatars'
     and
     position(auth.uid()::text in name) > 0
   );
@@ -687,7 +593,7 @@ create policy "Users can update their own HD avatars"
 create policy "Users can delete their own HD avatars"
   on storage.objects for delete
   using (
-    bucket_id = 'avatars-hd'
+    bucket_id = 'user-avatars'
     and
     position(auth.uid()::text in name) > 0
   );
@@ -843,7 +749,7 @@ as $$
 begin
   -- Limpiar grabaciones de clases eliminadas
   delete from storage.objects
-  where bucket_id = 'live-recordings'
+  where bucket_id = 'media'
     and not exists (
       select 1 from public.live_classes lc
       where position(lc.id::text in name) > 0
@@ -852,7 +758,7 @@ begin
 
   -- Limpiar recursos de clases eliminadas
   delete from storage.objects
-  where bucket_id = 'live-resources'
+  where bucket_id = 'resource-files'
     and not exists (
       select 1 from public.live_classes lc
       where position(lc.id::text in name) > 0
@@ -861,7 +767,7 @@ begin
 
   -- Limpiar entregas de tareas eliminadas
   delete from storage.objects
-  where bucket_id = 'task-submissions'
+  where bucket_id = 'resource-files'
     and not exists (
       select 1 from public.tasks t
       where position(t.id::text in name) > 0
@@ -870,7 +776,7 @@ begin
 
   -- Limpiar avatares de usuarios eliminados
   delete from storage.objects
-  where bucket_id in ('avatars-hd', 'media')
+  where bucket_id in ('user-avatars')
     and not exists (
       select 1 from public.profiles p
       where position(p.id::text in name) > 0

@@ -20,11 +20,8 @@
     'tenant-logos',
     'user-avatars',
     'user-signatures',
-    'live-recordings',
-    'live-resources',
-    'task-submissions',
-    'avatars-hd',
     'certificates-custom',
+    'gamification',
     'exports'
     );
 
@@ -35,11 +32,8 @@
     'tenant-logos',
     'user-avatars',
     'user-signatures',
-    'live-recordings',
-    'live-resources',
-    'task-submissions',
-    'avatars-hd',
     'certificates-custom',
+    'gamification',
     'exports'
     );
 

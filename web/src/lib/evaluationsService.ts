@@ -379,7 +379,7 @@ export async function getEvaluationResults(evaluationId: string) {
     .from('evaluation_attempts')
     .select(`
       *,
-      profiles_with_email!evaluation_attempts_student_id_fkey(full_name, email),
+      profiles!evaluation_attempts_student_id_fkey(full_name),
       evaluations(title, max_score, passing_score)
     `)
     .eq('evaluation_id', evaluationId)
