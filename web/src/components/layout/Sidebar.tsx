@@ -20,6 +20,7 @@ import {
   ChartBarIcon,
 } from '@heroicons/react/24/outline'
 import type React from 'react'
+import { useTenant } from '../../hooks/useTenant'
 
 interface SidebarProps {
   className?: string
@@ -93,7 +94,12 @@ export default function Sidebar({
   position = 'fixed' 
 }: SidebarProps) {
   const basePos = position === 'fixed' ? 'fixed left-0 top-0 h-full z-50' : 'h-full'
-  
+  const { selectedTenant } = useTenant()
+  const role = selectedTenant?.role
+  const isOwnerAdmin = role === 'owner' || role === 'admin'
+  const isTeacher = role === 'teacher'
+  const isStudent = role === 'student'
+
   return (
     <aside 
       className={`${basePos} ${collapsed ? 'w-20 sm:w-24' : 'w-64 sm:w-72'} glass-sidebar transition-[width] duration-300 ease-in-out ${className}`}
@@ -159,72 +165,92 @@ export default function Sidebar({
             icon={HomeIcon} 
             collapsed={collapsed} 
           />
-          <NavItem 
-            to="/users" 
-            label="Usuarios" 
-            icon={UsersIcon} 
-            collapsed={collapsed} 
-          />
-          <NavItem 
-            to="/roles" 
-            label="Roles" 
-            icon={ShieldCheckIcon} 
-            collapsed={collapsed} 
-          />
-          <NavItem 
-            to="/categories" 
-            label="Categorías" 
-            icon={TagIcon} 
-            collapsed={collapsed} 
-          />
-          <NavItem 
-            to="/courses" 
-            label="Cursos" 
-            icon={BookOpenIcon} 
-            collapsed={collapsed} 
-          />
-          <NavItem 
-            to="/resources" 
-            label="Recursos" 
-            icon={FolderIcon} 
-            collapsed={collapsed} 
-          />
-          <NavItem 
-            to="/tasks" 
-            label="Tareas" 
-            icon={ClipboardDocumentListIcon} 
-            collapsed={collapsed} 
-          />
-          <NavItem 
-            to="/evaluations" 
-            label="Evaluaciones" 
-            icon={ClipboardDocumentCheckIcon} 
-            collapsed={collapsed} 
-          />
-          <NavItem 
-            to="/submissions" 
-            label="Entregas y Calificaciones" 
-            icon={DocumentTextIcon} 
-            collapsed={collapsed} 
-          />
-          <NavItem 
-            to="/enrollments" 
-            label="Inscripciones" 
-            icon={UserPlusIcon} 
-            collapsed={collapsed} 
-          />
-          <NavItem 
-            to="/admin/enrollments" 
-            label="Admin Inscripciones" 
-            icon={UsersIcon} 
-            collapsed={collapsed} 
-          />
-          <NavItem 
-            to="/admin/enrollment-reports" 
-            label="Reportes Inscripciones" 
-            icon={ChartBarIcon} 
-            collapsed={collapsed} 
-          />
+          {isOwnerAdmin && (
+            <>
+              <NavItem 
+                to="/users" 
+                label="Usuarios" 
+                icon={UsersIcon} 
+                collapsed={collapsed} 
+              />
+              <NavItem 
+                to="/roles" 
+                label="Roles" 
+                icon={ShieldCheckIcon} 
+                collapsed={collapsed} 
+              />
+              <NavItem 
+                to="/categories" 
+                label="Categorías" 
+                icon={TagIcon} 
+                collapsed={collapsed} 
+              />
+            </>
+          )}
+          {(isOwnerAdmin || isTeacher) && (
+            <NavItem 
+              to="/courses" 
+              label="Cursos" 
+              icon={BookOpenIcon} 
+              collapsed={collapsed} 
+            />
+          )}
+          {(isOwnerAdmin || isTeacher) && (
+            <NavItem 
+              to="/resources" 
+              label="Recursos" 
+              icon={FolderIcon} 
+              collapsed={collapsed} 
+            />
+          )}
+          {(isOwnerAdmin || isTeacher) && (
+            <NavItem 
+              to="/tasks" 
+              label="Tareas" 
+              icon={ClipboardDocumentListIcon} 
+              collapsed={collapsed} 
+            />
+          )}
+          {(isOwnerAdmin || isTeacher) && (
+            <NavItem 
+              to="/evaluations" 
+              label="Evaluaciones" 
+              icon={ClipboardDocumentCheckIcon} 
+              collapsed={collapsed} 
+            />
+          )}
+          {isStudent && (
+            <NavItem 
+              to="/submissions" 
+              label="Entregas y Calificaciones" 
+              icon={DocumentTextIcon} 
+              collapsed={collapsed} 
+            />
+          )}
+          {isStudent && (
+            <NavItem 
+              to="/enrollments" 
+              label="Inscripciones" 
+              icon={UserPlusIcon} 
+              collapsed={collapsed} 
+            />
+          )}
+          {isOwnerAdmin && (
+            <>
+              <NavItem 
+                to="/admin/enrollments" 
+                label="Admin Inscripciones" 
+                icon={UsersIcon} 
+                collapsed={collapsed} 
+              />
+              <NavItem 
+                to="/admin/enrollment-reports" 
+                label="Reportes Inscripciones" 
+                icon={ChartBarIcon} 
+                collapsed={collapsed} 
+              />
+            </>
+          )}
           <NavItem 
             to="/profile" 
             label="Mi Perfil" 
@@ -234,43 +260,51 @@ export default function Sidebar({
         </div>
 
         {/* Gestión Multi-Tenant */}
-        <SectionTitle title="Gestión Multi-Tenant" collapsed={collapsed} />
-        <div className="space-y-1">
-          <NavItem 
-            to="/tenants" 
-            label="Tenants" 
-            icon={BuildingOfficeIcon} 
-            collapsed={collapsed} 
-          />
-          <NavItem 
-            to="/memberships" 
-            label="Membresías" 
-            icon={UsersIcon} 
-            collapsed={collapsed} 
-          />
-          <NavItem 
-            to="/relationships" 
-            label="Relaciones Padre-Estudiante" 
-            icon={UserGroupIcon} 
-            collapsed={collapsed} 
-          />
-        </div>
+        {(isOwnerAdmin) && (
+          <>
+            <SectionTitle title="Gestión Multi-Tenant" collapsed={collapsed} />
+            <div className="space-y-1">
+              <NavItem 
+                to="/tenants" 
+                label="Tenants" 
+                icon={BuildingOfficeIcon} 
+                collapsed={collapsed} 
+              />
+              <NavItem 
+                to="/memberships" 
+                label="Membresías" 
+                icon={UsersIcon} 
+                collapsed={collapsed} 
+              />
+              <NavItem 
+                to="/relationships" 
+                label="Relaciones Padre-Estudiante" 
+                icon={UserGroupIcon} 
+                collapsed={collapsed} 
+              />
+            </div>
+          </>
+        )}
 
         {/* Comunicación y Certificación */}
         <SectionTitle title="Comunicación y Certificación" collapsed={collapsed} />
         <div className="space-y-1">
-          <NavItem 
-            to="/notifications" 
-            label="Notificaciones" 
-            icon={BellIcon} 
-            collapsed={collapsed} 
-          />
-          <NavItem 
-            to="/certificates" 
-            label="Certificados" 
-            icon={AcademicCapIcon} 
-            collapsed={collapsed} 
-          />
+          {isOwnerAdmin && (
+            <NavItem 
+              to="/notifications" 
+              label="Notificaciones" 
+              icon={BellIcon} 
+              collapsed={collapsed} 
+            />
+          )}
+          {isStudent && (
+            <NavItem 
+              to="/certificates" 
+              label="Certificados" 
+              icon={AcademicCapIcon} 
+              collapsed={collapsed} 
+            />
+          )}
         </div>
 
       </nav>
