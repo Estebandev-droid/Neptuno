@@ -17,6 +17,7 @@ import {
   AcademicCapIcon,
   ClipboardDocumentCheckIcon,
   UserIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline'
 import type React from 'react'
 
@@ -210,6 +211,18 @@ export default function Sidebar({
             to="/enrollments" 
             label="Inscripciones" 
             icon={UserPlusIcon} 
+            collapsed={collapsed} 
+          />
+          <NavItem 
+            to="/admin/enrollments" 
+            label="Admin Inscripciones" 
+            icon={UsersIcon} 
+            collapsed={collapsed} 
+          />
+          <NavItem 
+            to="/admin/enrollment-reports" 
+            label="Reportes Inscripciones" 
+            icon={ChartBarIcon} 
             collapsed={collapsed} 
           />
           <NavItem 

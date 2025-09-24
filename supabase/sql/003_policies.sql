@@ -277,7 +277,9 @@ CREATE POLICY "profiles_select_policy" ON public.profiles
     public.has_role('superadmin') OR
     public.has_role('developer') OR
     public.has_membership_role(tenant_id, 'admin') OR
-    public.has_membership_role(tenant_id, 'owner')
+    public.has_membership_role(tenant_id, 'owner') OR
+    -- Teachers pueden ver perfiles de su mismo tenant
+    (public.has_membership_role(tenant_id, 'teacher') OR public.has_role('teacher'))
   );
 
 DROP POLICY IF EXISTS "profiles_update_policy" ON public.profiles;

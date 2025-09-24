@@ -57,7 +57,7 @@ export function useAppData() {
 
   const instructors = useMemo(() => 
     (profiles ?? []).filter(profile => 
-      profile.role === 'instructor' || profile.role === 'admin'
+      profile.role === 'teacher' || profile.role === 'admin'
     ) as Profile[], 
     [profiles]
   )

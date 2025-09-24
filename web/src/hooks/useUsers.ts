@@ -201,7 +201,7 @@ export function useInstructors() {
   const { profiles, isLoading, error } = useUsers()
   
   const instructors = profiles.filter(profile => 
-    profile.role === 'instructor' || profile.role === 'admin'
+    profile.role === 'teacher' || profile.role === 'admin'
   )
 
   return {

@@ -24,6 +24,8 @@ import EvaluationsPage from './pages/teacher/Evaluations'
 import Signup from './pages/auth/Signup'
 import ProfilePage from './pages/student/Profile'
 import MembershipsPage from './pages/admin/Memberships'
+import AdminEnrollmentsPage from './pages/admin/Enrollments'
+import EnrollmentReportsPage from './pages/admin/EnrollmentReports'
 
 const queryClient = new QueryClient()
 
@@ -68,6 +70,8 @@ export default function App() {
               <Route path="courses/:id" element={<CourseDetailPage />} />
               <Route path="resources" element={<ResourcesPage />} />
               <Route path="enrollments" element={<EnrollmentsPage />} />
+              <Route path="admin/enrollments" element={<AdminEnrollmentsPage />} />
+              <Route path="admin/enrollment-reports" element={<EnrollmentReportsPage />} />
               <Route path="tasks" element={<TasksPage />} />
               <Route path="submissions" element={<SubmissionsPage />} />
               <Route path="tenants" element={<TenantsPage />} />

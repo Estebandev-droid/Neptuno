@@ -104,7 +104,9 @@ export async function getUserRoles(userId: string): Promise<string[]> {
   const { data, error } = await supabase.rpc('user_roles_list', { p_user: userId })
   if (error) throw error
   // data es arreglo de objetos con role_name según la función
-  return (data as { role_name: string }[]).map(r => r.role_name)
+  const roles = (data as { role_name: string }[]).map(r => r.role_name)
+  // Eliminar roles duplicados
+  return Array.from(new Set(roles))
 }
 
 export async function updateProfile(userId: string, updates: Partial<Profile>): Promise<void> {

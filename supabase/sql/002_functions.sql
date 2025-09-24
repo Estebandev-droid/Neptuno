@@ -680,22 +680,28 @@ set search_path = public
 as $$
 begin
   return query
-  select 
-    p.role as role_name,
-    null::uuid as tenant_id,
-    'Global'::text as tenant_name
-  from public.profiles p
-  where p.id = p_user and p.role is not null
-  
-  union all
-  
-  select 
-    m.role as role_name,
-    m.tenant_id,
-    t.name as tenant_name
-  from public.memberships m
-  join public.tenants t on t.id = m.tenant_id
-  where m.user_id = p_user and m.is_active = true;
+  select distinct
+    roles.role_name,
+    roles.tenant_id,
+    roles.tenant_name
+  from (
+    select 
+      p.role as role_name,
+      null::uuid as tenant_id,
+      'Global'::text as tenant_name
+    from public.profiles p
+    where p.id = p_user and p.role is not null
+    
+    union all
+    
+    select 
+      m.role as role_name,
+      m.tenant_id,
+      t.name as tenant_name
+    from public.memberships m
+    join public.tenants t on t.id = m.tenant_id
+    where m.user_id = p_user and m.is_active = true
+  ) as roles;
 end; $$;
 
 -- Obtener memberships de un usuario
