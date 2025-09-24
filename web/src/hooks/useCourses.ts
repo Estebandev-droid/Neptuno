@@ -55,8 +55,9 @@ export function useCourses(options: UseCoursesOptions = {}) {
       instructorId 
     }),
     enabled,
-    staleTime: 2 * 60 * 1000, // 2 minutos
+    staleTime: 30 * 1000, // 30 segundos para actualizaciones más frecuentes
     gcTime: 5 * 60 * 1000, // 5 minutos
+    refetchOnWindowFocus: true, // Refrescar al enfocar la ventana
   })
 
   // Mutación para crear curso
@@ -84,7 +85,11 @@ export function useCourses(options: UseCoursesOptions = {}) {
       return courseId
     },
     onSuccess: () => {
+      // Invalidar todas las queries de cursos para actualizaciones inmediatas
       queryClient.invalidateQueries({ queryKey: ['courses'] })
+      queryClient.invalidateQueries({ queryKey: ['course'] })
+      // Refrescar inmediatamente
+      queryClient.refetchQueries({ queryKey: ['courses'] })
     },
     onError: (error) => {
       console.error('Error creating course:', error)
@@ -111,8 +116,13 @@ export function useCourses(options: UseCoursesOptions = {}) {
       
       return updateCourse(courseId, finalUpdates)
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      // Invalidar todas las queries de cursos para actualizaciones inmediatas
       queryClient.invalidateQueries({ queryKey: ['courses'] })
+      queryClient.invalidateQueries({ queryKey: ['course'] })
+      queryClient.invalidateQueries({ queryKey: ['course', variables.courseId] })
+      // Refrescar inmediatamente para mostrar cambios
+      queryClient.refetchQueries({ queryKey: ['courses'] })
     },
     onError: (error) => {
       console.error('Error updating course:', error)
@@ -123,8 +133,11 @@ export function useCourses(options: UseCoursesOptions = {}) {
   const toggleActiveMutation = useMutation({
     mutationFn: ({ courseId, active }: { courseId: string; active: boolean }) =>
       setCourseActive(courseId, active),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      // Invalidar y refrescar para actualizaciones inmediatas
       queryClient.invalidateQueries({ queryKey: ['courses'] })
+      queryClient.invalidateQueries({ queryKey: ['course', variables.courseId] })
+      queryClient.refetchQueries({ queryKey: ['courses'] })
     },
     onError: (error) => {
       console.error('Error toggling course active state:', error)
@@ -135,7 +148,10 @@ export function useCourses(options: UseCoursesOptions = {}) {
   const deleteCourseMutation = useMutation({
     mutationFn: (courseId: string) => deleteCourse(courseId),
     onSuccess: () => {
+      // Invalidar y refrescar para actualizaciones inmediatas
       queryClient.invalidateQueries({ queryKey: ['courses'] })
+      queryClient.invalidateQueries({ queryKey: ['course'] })
+      queryClient.refetchQueries({ queryKey: ['courses'] })
     },
     onError: (error) => {
       console.error('Error deleting course:', error)

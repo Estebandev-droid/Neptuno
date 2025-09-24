@@ -111,25 +111,54 @@ export async function getCourseById(id: string): Promise<Course | null> {
 export async function uploadCourseCover(file: File, courseId: string): Promise<string> {
   if (!file) throw new Error('Archivo de imagen requerido')
   if (!courseId) throw new Error('ID de curso requerido')
-  if (!file.type.startsWith('image/')) throw new Error('El archivo debe ser una imagen')
+  
+  // Validaciones más específicas
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+  if (!allowedTypes.includes(file.type.toLowerCase())) {
+    throw new Error('Formato de imagen no válido. Use JPG, PNG, GIF o WebP')
+  }
+  
   const maxSize = 5 * 1024 * 1024 // 5MB
-  if (file.size > maxSize) throw new Error('La imagen excede 5MB')
+  if (file.size > maxSize) {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
+    throw new Error(`La imagen es demasiado grande (${sizeMB}MB). Máximo permitido: 5MB`)
+  }
 
   const bucket = 'course-covers'
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
   const path = `${courseId}/cover-${Date.now()}.${ext}`
 
-  const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, {
-    upsert: true,
-    contentType: file.type || 'image/jpeg',
-  })
-  if (uploadError) {
-    console.error('Error al subir portada:', uploadError)
-    throw uploadError
-  }
+  try {
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, {
+      upsert: true,
+      contentType: file.type || 'image/jpeg',
+    })
+    
+    if (uploadError) {
+      console.error('Error al subir portada:', uploadError)
+      
+      // Manejo de errores específicos de Supabase Storage
+      if (uploadError.message.includes('not found')) {
+        throw new Error('El bucket de almacenamiento no existe. Contacte al administrador.')
+      } else if (uploadError.message.includes('unauthorized')) {
+        throw new Error('No tiene permisos para subir imágenes. Contacte al administrador.')
+      } else if (uploadError.message.includes('payload too large')) {
+        throw new Error('El archivo es demasiado grande para el servidor.')
+      } else {
+        throw new Error(`Error al subir la imagen: ${uploadError.message}`)
+      }
+    }
 
-  const { data } = supabase.storage.from(bucket).getPublicUrl(path)
-  const publicUrl = data.publicUrl
-  if (!publicUrl) throw new Error('No se pudo obtener URL pública de la portada')
-  return publicUrl
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+    const publicUrl = data.publicUrl
+    
+    if (!publicUrl) {
+      throw new Error('No se pudo obtener la URL pública de la imagen')
+    }
+    
+    return publicUrl
+  } catch (error) {
+    console.error('Error en uploadCourseCover:', error)
+    throw error
+  }
 }
