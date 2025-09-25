@@ -489,4 +489,10 @@ BEGIN
   END IF;
 END $$;
 
+-- =============================================
+-- PERMISOS GRANT EXECUTE PARA FUNCIONES DE SEED
+-- =============================================
+
+GRANT EXECUTE ON FUNCTION public.assign_superadmin_to_existing_user() TO authenticated;
+
 COMMIT;

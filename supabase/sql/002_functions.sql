@@ -87,7 +87,7 @@ returns trigger
 language plpgsql as $$
 begin
   if tg_op = 'INSERT' or tg_op = 'UPDATE' then
-    if new.role in ('super_admin', 'platform_admin') then
+    if new.role = 'super_admin' then
       insert into public.platform_admins (user_id) values (new.id)
       on conflict (user_id) do nothing;
     else
@@ -187,6 +187,7 @@ create trigger audit_grades
 -- =============================================
 
 -- Función para obtener evaluación completa con preguntas
+DROP FUNCTION IF EXISTS get_evaluation_with_questions(uuid, uuid);
 create or replace function get_evaluation_with_questions(
   p_evaluation_id uuid default null,
   p_student_id uuid default null
@@ -239,6 +240,7 @@ end;
 $$;
 
 -- Función para iniciar intento de evaluación
+DROP FUNCTION IF EXISTS start_evaluation_attempt(uuid, uuid);
 create or replace function start_evaluation_attempt(
   p_evaluation_id uuid,
   p_student_id uuid
@@ -253,7 +255,7 @@ declare
   max_attempts integer;
 begin
   -- Verificar límite de intentos
-  select attempts_allowed into max_attempts
+  select max_attempts into max_attempts
   from public.evaluations
   where id = p_evaluation_id;
   
@@ -281,6 +283,7 @@ end;
 $$;
 
 -- Función para calificar automáticamente
+DROP FUNCTION IF EXISTS auto_grade_evaluation(uuid);
 create or replace function auto_grade_evaluation(
   p_attempt_id uuid
 )
@@ -352,6 +355,7 @@ $$;
 -- =============================================
 
 -- Crear notificación
+DROP FUNCTION IF EXISTS create_notification(uuid, uuid, text, text, text);
 create or replace function create_notification(
   p_tenant_id uuid,
   p_user_id uuid,
@@ -385,7 +389,7 @@ end;
 $$;
 
 -- Listar notificaciones por usuario
-drop function if exists get_user_notifications(uuid, uuid, boolean, text, integer, integer);
+DROP FUNCTION IF EXISTS get_user_notifications(uuid, uuid, boolean, text, integer, integer);
 create or replace function get_user_notifications(
   p_user_id uuid,
   p_tenant_id uuid default null,
@@ -430,6 +434,7 @@ end;
 $$;
 
 -- Marcar notificación como leída
+DROP FUNCTION IF EXISTS mark_notification_read(uuid, uuid);
 create or replace function mark_notification_read(
   p_notification_id uuid,
   p_user_id uuid
@@ -456,6 +461,7 @@ $$;
 -- =============================================
 
 -- Emitir certificado
+DROP FUNCTION IF EXISTS issue_certificate(uuid, uuid, uuid, jsonb, text, uuid);
 create or replace function issue_certificate(
   p_tenant_id uuid,
   p_student_id uuid,
@@ -566,7 +572,7 @@ returns boolean language sql stable security definer set search_path = public as
   select exists(
     select 1 from public.platform_admins pa where pa.user_id = p_user
     union
-    select 1 from public.profiles p where p.id = p_user and p.role in ('super_admin','platform_admin')
+    select 1 from public.profiles p where p.id = p_user and p.role = 'super_admin'
     union
     select 1 from public.memberships m where m.user_id = p_user and m.role in ('admin','owner') and m.is_active = true
   )
@@ -761,6 +767,7 @@ end; $$;
 
 -- Función para crear usuarios desde el panel de administración
 -- Esta función solo actualiza el perfil después de que el usuario sea creado en auth.users
+DROP FUNCTION IF EXISTS public.create_user_admin(text,text,text,text,text,text,text);
 CREATE OR REPLACE FUNCTION public.create_user_admin(
   p_email text,
   p_password text,
@@ -768,7 +775,7 @@ CREATE OR REPLACE FUNCTION public.create_user_admin(
   p_role_name text DEFAULT 'student',
   p_phone text DEFAULT NULL,
   p_signature_url text DEFAULT NULL,
-  p_photo_url text DEFAULT NULL
+  p_avatar_url text DEFAULT NULL
 )
 RETURNS jsonb
 SECURITY DEFINER
@@ -803,7 +810,7 @@ BEGIN
   END IF;
 
   -- Validar rol
-  IF p_role_name NOT IN ('student', 'teacher', 'admin', 'super_admin', 'tenant_admin') THEN
+  IF p_role_name NOT IN ('student', 'teacher', 'super_admin', 'tenant_admin', 'parent') THEN
     RETURN jsonb_build_object(
       'success', false,
       'error', 'Rol no válido: ' || p_role_name
@@ -838,7 +845,7 @@ BEGIN
       'role', p_role_name,
       'phone', p_phone,
       'signature_url', p_signature_url,
-      'photo_url', p_photo_url,
+      'avatar_url', p_avatar_url,
       'tenant_id', v_tenant_id
     ),
     'message', 'Datos validados correctamente. Proceder con signUp.'
@@ -853,8 +860,99 @@ EXCEPTION
 END;
 $$;
 
+-- Listar roles disponibles (basado en memberships)
+drop function if exists public.list_available_roles() cascade;
+create or replace function public.list_available_roles()
+returns table(role_name text, description text, usage_count bigint)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  table_exists boolean;
+begin
+  -- Verificar si la tabla memberships existe
+  select exists (
+    select from information_schema.tables 
+    where table_schema = 'public' 
+    and table_name = 'memberships'
+  ) into table_exists;
+  
+  if table_exists then
+    return query
+    select 
+      r.role_name,
+      case r.role_name
+        when 'owner' then 'Propietario del tenant'
+        when 'admin' then 'Administrador del tenant'
+        when 'teacher' then 'Profesor'
+        when 'student' then 'Estudiante'
+        when 'parent' then 'Padre/Tutor'
+        when 'viewer' then 'Observador'
+      end as description,
+      count(m.id)::bigint as usage_count
+    from unnest(array['owner', 'admin', 'teacher', 'student', 'parent', 'viewer']) with ordinality as r(role_name, ord)
+    left join public.memberships m
+      on m.role = r.role_name
+     and m.is_active = true
+    group by r.role_name, r.ord
+    order by r.ord;
+  else
+    -- Si la tabla no existe, devolver solo los roles básicos sin conteo
+    return query
+    select 
+      r.role_name,
+      case r.role_name
+        when 'owner' then 'Propietario del tenant'
+        when 'admin' then 'Administrador del tenant'
+        when 'teacher' then 'Profesor'
+        when 'student' then 'Estudiante'
+        when 'parent' then 'Padre/Tutor'
+        when 'viewer' then 'Observador'
+      end as description,
+      0::bigint as usage_count
+    from unnest(array['owner', 'admin', 'teacher', 'student', 'parent', 'viewer']) with ordinality as r(role_name, ord)
+    order by r.ord;
+  end if;
+end;
+$$;
+
+-- Obtener estadísticas de roles
+create or replace function public.get_role_statistics()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_result jsonb;
+begin
+  select jsonb_object_agg(role, count)
+  into v_result
+  from (
+    select role, count(*) as count
+    from public.memberships
+    where is_active = true
+    group by role
+  ) stats;
+  
+  return coalesce(v_result, '{}');
+end;
+$$;
+
 -- Otorgar permisos de ejecución
 GRANT EXECUTE ON FUNCTION public.create_user_admin TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_user_role(uuid, text, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.user_role_assign(uuid, text, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.user_role_revoke(uuid, text, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_membership(uuid, uuid, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.user_roles_list(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_memberships(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.deactivate_membership(uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.list_available_roles() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.role_create_membership(uuid, uuid, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.role_delete_membership(uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_role_statistics() TO authenticated;
 
 -- =============================================
 -- FUNCIONES RPC AVANZADAS - NEPTUNO 2025
@@ -925,6 +1023,7 @@ end;
 $$;
 
 -- Iniciar clase en vivo
+DROP FUNCTION IF EXISTS start_live_class(uuid, uuid);
 create or replace function start_live_class(
   p_live_class_id uuid,
   p_instructor_id uuid
@@ -1018,6 +1117,7 @@ $$;
 -- =============================================
 
 -- Agregar comentario en clase en vivo
+DROP FUNCTION IF EXISTS add_live_class_comment(uuid, uuid, text, text, uuid);
 create or replace function add_live_class_comment(
   p_live_class_id uuid,
   p_user_id uuid,
@@ -1091,6 +1191,7 @@ end;
 $$;
 
 -- Crear discusión en curso
+DROP FUNCTION IF EXISTS create_course_discussion(uuid, uuid, uuid, text, text, text, text[]);
 create or replace function create_course_discussion(
   p_tenant_id uuid,
   p_course_id uuid,
@@ -1132,6 +1233,7 @@ end;
 $$;
 
 -- Enviar mensaje directo
+DROP FUNCTION IF EXISTS send_direct_message(uuid, uuid, uuid, text, text, text, text, integer);
 create or replace function send_direct_message(
   p_tenant_id uuid default null,
   p_sender_id uuid default null,
@@ -1189,6 +1291,7 @@ $$;
 -- =============================================
 
 -- Crear tarea con configuración avanzada
+DROP FUNCTION IF EXISTS create_advanced_task(uuid, uuid, text, text, text, timestamptz, numeric, jsonb, jsonb, boolean, numeric, boolean, integer, text, integer, text, text[], jsonb);
 create or replace function create_advanced_task(
   p_tenant_id uuid default null,
   p_course_id uuid default null,
@@ -1250,6 +1353,7 @@ end;
 $$;
 
 -- Actualizar progreso de tarea
+DROP FUNCTION IF EXISTS update_task_progress(uuid, uuid, text, numeric, integer, text, text[]);
 create or replace function update_task_progress(
   p_task_id uuid default null,
   p_student_id uuid default null,
@@ -1280,6 +1384,7 @@ end;
 $$;
 
 -- Crear grupo para tarea colaborativa
+DROP FUNCTION IF EXISTS create_task_group(uuid, text, text, uuid);
 create or replace function create_task_group(
   p_task_id uuid default null,
   p_name text default null,
@@ -1323,6 +1428,7 @@ $$;
 -- =============================================
 
 -- Actualizar métricas de engagement diarias
+DROP FUNCTION IF EXISTS update_daily_engagement(uuid, uuid, text);
 create or replace function update_daily_engagement(
   p_student_id uuid default null,
   p_course_id uuid default null,
@@ -1368,6 +1474,7 @@ end;
 $$;
 
 -- Generar alerta de riesgo académico
+DROP FUNCTION IF EXISTS create_academic_risk_alert(uuid, uuid, text, text, text, text[]);
 create or replace function create_academic_risk_alert(
   p_student_id uuid default null,
   p_course_id uuid default null,
@@ -1430,6 +1537,7 @@ $$;
 -- =============================================
 
 -- Otorgar logro a estudiante
+DROP FUNCTION IF EXISTS award_achievement(uuid, uuid, uuid);
 create or replace function award_achievement(
   p_student_id uuid default null,
   p_achievement_id uuid default null,
@@ -1508,6 +1616,7 @@ $$;
 -- =============================================
 
 -- Obtener dashboard del instructor
+DROP FUNCTION IF EXISTS get_instructor_dashboard(uuid, uuid, date, date);
 create or replace function get_instructor_dashboard(
   p_instructor_id uuid default null,
   p_tenant_id uuid default null,
@@ -1651,35 +1760,7 @@ $$;
 -- FUNCIONES RPC PARA MANEJO DE ROLES
 -- =============================================
 
--- Listar roles disponibles (basado en memberships)
-drop function if exists public.list_available_roles();
-create or replace function public.list_available_roles()
-returns table(role_name text, description text, usage_count bigint)
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  return query
-  select 
-    r.role_name,
-    case r.role_name
-      when 'owner' then 'Propietario del tenant'
-      when 'admin' then 'Administrador del tenant'
-      when 'teacher' then 'Profesor'
-      when 'student' then 'Estudiante'
-      when 'parent' then 'Padre/Tutor'
-      when 'viewer' then 'Observador'
-    end as description,
-    count(m.id)::bigint as usage_count
-  from unnest(array['owner', 'admin', 'teacher', 'student', 'parent', 'viewer']) with ordinality as r(role_name, ord)
-  left join public.memberships m
-    on m.role = r.role_name
-   and m.is_active = true
-  group by r.role_name, r.ord
-  order by r.ord;
-end;
-$$;
+
 
 -- Crear o actualizar rol de usuario en un tenant
 create or replace function public.role_create_membership(
@@ -1734,39 +1815,19 @@ begin
 end;
 $$;
 
--- Obtener estadísticas de roles
-create or replace function public.get_role_statistics()
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_result jsonb;
-begin
-  select jsonb_object_agg(role, count)
-  into v_result
-  from (
-    select role, count(*) as count
-    from public.memberships
-    where is_active = true
-    group by role
-  ) stats;
-  
-  return coalesce(v_result, '{}');
-end;
-$$;
+
 
 -- =============================================
 -- FUNCIONES CRUD PARA GESTIÓN DE TENANTS
 -- =============================================
 
 -- Crear tenant
+DROP FUNCTION IF EXISTS create_tenant(text, text, text, jsonb);
 create or replace function create_tenant(
   p_name text,
   p_domain text,
   p_plan text default 'basic',
-  p_settings jsonb default '{}'
+  p_branding jsonb default '{}'
 )
 returns uuid
 language plpgsql
@@ -1784,8 +1845,8 @@ begin
     raise exception 'El dominio del tenant es requerido';
   end if;
   
-  if p_plan not in ('basic', 'premium', 'enterprise') then
-    raise exception 'Plan inválido. Debe ser: basic, premium, enterprise';
+  if p_plan not in ('free', 'basic', 'pro') then
+    raise exception 'Plan inválido. Debe ser: free, basic, pro';
   end if;
   
   -- Verificar que el dominio no exista
@@ -1794,8 +1855,8 @@ begin
   end if;
   
   -- Crear tenant
-  insert into public.tenants (name, domain, plan, settings)
-  values (p_name, p_domain, p_plan, p_settings)
+  insert into public.tenants (name, domain, plan, branding)
+  values (p_name, p_domain, p_plan, p_branding)
   returning id into v_tenant_id;
   
   -- Crear categoría por defecto
@@ -1807,13 +1868,13 @@ end;
 $$;
 
 -- Actualizar tenant
+DROP FUNCTION IF EXISTS update_tenant(uuid, text, text, text, jsonb);
 create or replace function update_tenant(
   p_tenant_id uuid,
   p_name text default null,
   p_domain text default null,
   p_plan text default null,
-  p_settings jsonb default null,
-  p_is_active boolean default null
+  p_branding jsonb default null
 )
 returns boolean
 language plpgsql
@@ -1826,8 +1887,8 @@ begin
   end if;
   
   -- Validaciones
-  if p_plan is not null and p_plan not in ('basic', 'premium', 'enterprise') then
-    raise exception 'Plan inválido. Debe ser: basic, premium, enterprise';
+  if p_plan is not null and p_plan not in ('free', 'basic', 'pro') then
+    raise exception 'Plan inválido. Debe ser: free, basic, pro';
   end if;
   
   if p_domain is not null and exists (
@@ -1842,8 +1903,7 @@ begin
     name = coalesce(p_name, name),
     domain = coalesce(p_domain, domain),
     plan = coalesce(p_plan, plan),
-    settings = coalesce(p_settings, settings),
-    is_active = coalesce(p_is_active, is_active),
+    branding = coalesce(p_branding, branding),
     updated_at = now()
   where id = p_tenant_id;
   
@@ -1851,7 +1911,7 @@ begin
 end;
 $$;
 
--- Desactivar tenant
+-- Desactivar tenant (marcar como inactivo en branding)
 create or replace function deactivate_tenant(
   p_tenant_id uuid
 )
@@ -1865,8 +1925,9 @@ begin
     raise exception 'No autorizado para desactivar tenants';
   end if;
   
+  -- Marcar como inactivo en el branding
   update public.tenants
-  set is_active = false, updated_at = now()
+  set branding = coalesce(branding, '{}') || '{"is_active": false}', updated_at = now()
   where id = p_tenant_id;
   
   return found;
@@ -1878,6 +1939,7 @@ $$;
 -- =============================================
 
 -- Crear course
+DROP FUNCTION IF EXISTS create_course(uuid, text, text, uuid, uuid, text, boolean, integer, date, date);
 create or replace function create_course(
   p_tenant_id uuid,
   p_title text,
@@ -1924,8 +1986,8 @@ begin
     raise exception 'Categoría inválida o no pertenece al tenant';
   end if;
   
-  -- Verificar permisos (instructor o admin)
-  if not (public.has_role('instructor') or public.has_role('admin')) then
+  -- Verificar permisos (teacher o tenant_admin)
+  if not (public.has_role('teacher') or public.has_role('tenant_admin')) then
     raise exception 'No autorizado para crear cursos';
   end if;
   
@@ -1972,8 +2034,8 @@ begin
     raise exception 'Curso no encontrado';
   end if;
   
-  -- Verificar permisos (instructor del curso o admin del tenant)
-  if not (v_course_instructor_id = auth.uid() or public.has_role('admin')) then
+  -- Verificar permisos (instructor del curso o tenant_admin del tenant)
+  if not (v_course_instructor_id = auth.uid() or public.has_role('tenant_admin')) then
     raise exception 'No autorizado para actualizar este curso';
   end if;
   
@@ -2023,8 +2085,8 @@ begin
     raise exception 'Curso no encontrado';
   end if;
   
-  -- Verificar permisos (instructor del curso o admin)
-  if not (v_course_instructor_id = auth.uid() or public.has_role('admin')) then
+  -- Verificar permisos (instructor del curso o tenant_admin)
+  if not (v_course_instructor_id = auth.uid() or public.has_role('tenant_admin')) then
     raise exception 'No autorizado para eliminar este curso';
   end if;
   
@@ -2261,8 +2323,8 @@ begin
   -- Usar el usuario actual si no se especifica estudiante
   p_student_id := coalesce(p_student_id, auth.uid());
   
-  -- Verificar permisos (el propio estudiante o admin)
-  if not (p_student_id = auth.uid() or public.has_role('admin')) then
+  -- Verificar permisos (el propio estudiante o tenant_admin)
+  if not (p_student_id = auth.uid() or public.has_role('tenant_admin')) then
     raise exception 'No autorizado para ver las inscripciones de este estudiante';
   end if;
   
@@ -2324,6 +2386,7 @@ $$;
 -- =============================================
 
 -- Crear resource
+DROP FUNCTION IF EXISTS create_resource(uuid, text, text, text, text, text, boolean, integer);
 create or replace function create_resource(
   p_course_id uuid,
   p_title text,
@@ -2365,8 +2428,8 @@ begin
     raise exception 'Curso no encontrado';
   end if;
   
-  -- Verificar permisos (instructor del curso o admin)
-  if not (v_course_instructor_id = auth.uid() or public.has_role('admin')) then
+  -- Verificar permisos (instructor del curso o tenant_admin)
+  if not (v_course_instructor_id = auth.uid() or public.has_role('tenant_admin')) then
     raise exception 'No autorizado para crear recursos en este curso';
   end if;
   
@@ -2430,8 +2493,8 @@ begin
     raise exception 'Recurso no encontrado';
   end if;
   
-  -- Verificar permisos (instructor del curso o admin)
-  if not (v_course_instructor_id = auth.uid() or public.has_role('admin')) then
+  -- Verificar permisos (instructor del curso o tenant_admin)
+  if not (v_course_instructor_id = auth.uid() or public.has_role('tenant_admin')) then
     raise exception 'No autorizado para actualizar este recurso';
   end if;
   
@@ -2477,8 +2540,8 @@ begin
     raise exception 'Recurso no encontrado';
   end if;
   
-  -- Verificar permisos (instructor del curso o admin)
-  if not (v_course_instructor_id = auth.uid() or public.has_role('admin')) then
+  -- Verificar permisos (instructor del curso o tenant_admin)
+  if not (v_course_instructor_id = auth.uid() or public.has_role('tenant_admin')) then
     raise exception 'No autorizado para eliminar este recurso';
   end if;
   
@@ -2714,9 +2777,9 @@ begin
   -- Usar el usuario actual si no se especifica estudiante
   p_student_id := coalesce(p_student_id, auth.uid());
   
-  -- Verificar permisos (el propio estudiante, instructor del curso o admin)
-  if not (p_student_id = auth.uid() or public.has_role('admin')) then
-    -- Si no es el propio estudiante o admin, verificar si es instructor del curso
+  -- Verificar permisos (el propio estudiante, instructor del curso o tenant_admin)
+  if not (p_student_id = auth.uid() or public.has_role('tenant_admin')) then
+    -- Si no es el propio estudiante o tenant_admin, verificar si es instructor del curso
     if p_course_id is not null then
       if not exists (
         select 1 from public.courses c
@@ -2782,7 +2845,7 @@ create or replace function create_evaluation(
   p_questions jsonb default '[]',
   p_time_limit integer default null,
   p_max_attempts integer default 1,
-  p_passing_score numeric default 60,
+  p_passing_score integer default 60,
   p_start_date timestamp default null,
   p_end_date timestamp default null,
   p_is_published boolean default false
@@ -2863,7 +2926,7 @@ create or replace function update_evaluation(
   p_questions jsonb default null,
   p_time_limit integer default null,
   p_max_attempts integer default null,
-  p_passing_score numeric default null,
+  p_passing_score integer default null,
   p_start_date timestamp default null,
   p_end_date timestamp default null,
   p_is_published boolean default null
@@ -2889,8 +2952,8 @@ begin
     raise exception 'Evaluación no encontrada';
   end if;
   
-  -- Verificar permisos (instructor del curso o admin)
-  if not (v_instructor_id = auth.uid() or public.has_role('admin')) then
+  -- Verificar permisos (instructor del curso o tenant_admin)
+  if not (v_instructor_id = auth.uid() or public.has_role('tenant_admin')) then
     raise exception 'No autorizado para modificar esta evaluación';
   end if;
   
@@ -2974,8 +3037,8 @@ begin
     raise exception 'Evaluación no encontrada';
   end if;
   
-  -- Verificar permisos (instructor del curso o admin)
-  if not (v_instructor_id = auth.uid() or public.has_role('admin')) then
+  -- Verificar permisos (instructor del curso o tenant_admin)
+  if not (v_instructor_id = auth.uid() or public.has_role('tenant_admin')) then
     raise exception 'No autorizado para eliminar esta evaluación';
   end if;
   
@@ -3284,8 +3347,8 @@ as $$
 declare
   v_result jsonb;
 begin
-  -- Verificar permisos (solo admins pueden ver auditoría completa)
-  if not public.has_role('admin') then
+  -- Verificar permisos (solo tenant_admins pueden ver auditoría completa)
+  if not public.has_role('tenant_admin') then
     raise exception 'No autorizado para consultar el registro de auditoría';
   end if;
   
@@ -3320,5 +3383,91 @@ begin
   return coalesce(v_result, '[]'::jsonb);
 end;
 $$;
+
+-- =============================================
+-- PERMISOS GRANT EXECUTE ADICIONALES
+-- =============================================
+
+-- Funciones de evaluaciones
+GRANT EXECUTE ON FUNCTION get_evaluation_with_questions(uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION start_evaluation_attempt(uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION auto_grade_evaluation(uuid) TO authenticated;
+
+-- Funciones de notificaciones
+GRANT EXECUTE ON FUNCTION create_notification(uuid, uuid, text, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_user_notifications(uuid, uuid, boolean, text, integer, integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION mark_notification_read(uuid, uuid) TO authenticated;
+
+-- Funciones de certificados
+GRANT EXECUTE ON FUNCTION issue_certificate(uuid, uuid, uuid, jsonb, text, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_certificate_templates(uuid, boolean, integer, integer) TO authenticated;
+
+-- Funciones de roles y permisos
+GRANT EXECUTE ON FUNCTION public.get_role(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_platform_admin(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.has_role(text, uuid) TO authenticated;
+
+-- Funciones de clases en vivo
+GRANT EXECUTE ON FUNCTION create_live_class(uuid, uuid, uuid, text, text, timestamptz, timestamptz, text, text, text, integer, boolean, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION start_live_class(uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION join_live_class(uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION leave_live_class(uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION add_live_class_comment(uuid, uuid, text, text, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION react_to_comment(uuid, uuid, text) TO authenticated;
+
+-- Funciones de comunicación
+GRANT EXECUTE ON FUNCTION create_course_discussion(uuid, uuid, uuid, text, text, text, text[]) TO authenticated;
+GRANT EXECUTE ON FUNCTION send_direct_message(uuid, uuid, uuid, text, text, text, text, integer) TO authenticated;
+
+-- Funciones de tareas avanzadas
+GRANT EXECUTE ON FUNCTION create_advanced_task(uuid, uuid, text, text, text, timestamptz, numeric, jsonb, jsonb, boolean, numeric, boolean, integer, text, integer, text, text[], jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION update_task_progress(uuid, uuid, text, numeric, integer, text, text[]) TO authenticated;
+GRANT EXECUTE ON FUNCTION create_task_group(uuid, text, text, uuid) TO authenticated;
+
+-- Funciones de engagement y analytics
+GRANT EXECUTE ON FUNCTION update_daily_engagement(uuid, uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION create_academic_risk_alert(uuid, uuid, text, text, text, text[]) TO authenticated;
+GRANT EXECUTE ON FUNCTION award_achievement(uuid, uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION update_student_rankings() TO authenticated;
+
+-- Funciones de dashboard
+GRANT EXECUTE ON FUNCTION get_instructor_dashboard(uuid, uuid, date, date) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_student_dashboard(uuid, uuid) TO authenticated;
+
+-- Funciones de tenants
+GRANT EXECUTE ON FUNCTION create_tenant(text, text, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION update_tenant(uuid, text, text, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION deactivate_tenant(uuid) TO authenticated;
+
+-- Funciones de cursos
+GRANT EXECUTE ON FUNCTION create_course(uuid, text, text, uuid, uuid, text, boolean, integer, date, date) TO authenticated;
+GRANT EXECUTE ON FUNCTION update_course(uuid, text, text, uuid, text, boolean, integer, date, date) TO authenticated;
+GRANT EXECUTE ON FUNCTION delete_course(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_course_details(uuid) TO authenticated;
+
+-- Funciones de inscripciones
+GRANT EXECUTE ON FUNCTION enroll_student(uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION unenroll_student(uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_student_enrollments(uuid, text) TO authenticated;
+
+-- Funciones de recursos
+GRANT EXECUTE ON FUNCTION create_resource(uuid, text, text, text, text, text, boolean, integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION update_resource(uuid, text, text, text, text, text, boolean, integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION delete_resource(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_course_resources(uuid) TO authenticated;
+
+-- Funciones de submissions
+GRANT EXECUTE ON FUNCTION submit_task(uuid, uuid, text, text[], text) TO authenticated;
+GRANT EXECUTE ON FUNCTION update_submission(uuid, text, text[], text) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_student_submissions(uuid, uuid) TO authenticated;
+
+-- Funciones de evaluaciones CRUD
+GRANT EXECUTE ON FUNCTION create_evaluation(uuid, text, text, jsonb, integer, integer, integer, timestamp, timestamp, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION update_evaluation(uuid, text, text, jsonb, integer, integer, integer, timestamp, timestamp, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION delete_evaluation(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_evaluation_details(uuid) TO authenticated;
+
+-- Funciones de auditoría
+GRANT EXECUTE ON FUNCTION get_audit_trail(text, text, uuid, uuid, integer) TO authenticated;
 
 commit;

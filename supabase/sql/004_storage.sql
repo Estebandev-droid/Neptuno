@@ -339,6 +339,32 @@ begin
   end if;
 end $$;
 
+-- Bucket para grabaciones de clases en vivo y contenido multimedia
+do $$
+begin
+  if not exists (select 1 from storage.buckets where id = 'media') then
+    insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+    values (
+      'media',
+      'media',
+      false, -- Privado por defecto
+      2147483648, -- 2GB para videos
+      array[
+        'video/mp4',
+        'video/webm',
+        'video/quicktime',
+        'audio/mpeg',
+        'audio/wav',
+        'audio/ogg',
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/webp'
+      ]
+    );
+  end if;
+end $$;
+
 -- =============================================
 -- POLÍTICAS AVANZADAS PARA GRABACIONES DE CLASES
 -- =============================================
@@ -851,5 +877,12 @@ begin
   return v_result;
 end;
 $$;
+
+-- =============================================
+-- PERMISOS GRANT EXECUTE PARA FUNCIONES DE STORAGE
+-- =============================================
+
+GRANT EXECUTE ON FUNCTION cleanup_orphaned_files() TO authenticated;
+GRANT EXECUTE ON FUNCTION get_storage_stats(uuid) TO authenticated;
 
 commit;

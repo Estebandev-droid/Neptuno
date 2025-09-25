@@ -73,35 +73,10 @@ alter table public.memberships enable row level security;
 -- ==========================================================
 -- 3. HELPERS DE ROLES Y ADMIN
 -- ==========================================================
-create or replace function public.get_role(p_user uuid default auth.uid())
-returns text language sql stable security definer set search_path = public as $$
-  -- Primero verificar rol global en profiles
-  select coalesce(
-    (select role from public.profiles where id = p_user),
-    (select role from public.memberships where user_id = p_user and is_active = true limit 1),
-    'student'
-  )
-$$;
-
-create or replace function public.is_platform_admin(p_user uuid default auth.uid())
-returns boolean language sql stable security definer set search_path = public as $$
-  select exists(
-    select 1 from public.platform_admins pa where pa.user_id = p_user
-    union
-    select 1 from public.profiles p where p.id = p_user and p.role in ('super_admin','platform_admin')
-  )
-$$;
-
-create or replace function public.has_role(p_role_name text, p_user uuid default auth.uid())
-returns boolean language sql stable security definer set search_path = public as $$
-  select exists(
-    -- Verificar rol global en profiles
-    select 1 from public.profiles p where p.id = p_user and p.role = p_role_name
-    union
-    -- Verificar rol por tenant en memberships
-    select 1 from public.memberships m where m.user_id = p_user and m.role = p_role_name and m.is_active = true
-  )
-$$;
+/*
+  Nota: Las funciones get_role, is_platform_admin y has_role se definen de forma unificada en 002_functions.sql
+  para evitar duplicidades y mantener una sola fuente de verdad.
+*/
 
 -- =============================================
 -- FUNCIONES HELPER PARA MEMBERSHIPS
@@ -139,11 +114,12 @@ $$;
 -- 4. POLÍTICAS DE ACCESO
 -- ==========================================================
 
--- Perfiles: cada quien su propio perfil; admins pueden ver todos
+-- Perfiles: cada quien su propio perfil; admins de plataforma y admins/owners de tenant pueden ver/editar perfiles del mismo tenant
 create policy profiles_select on public.profiles
-for select using (auth.uid() = id or is_platform_admin());
+for select using (auth.uid() = id or is_platform_admin() or has_membership_role(tenant_id, 'owner') or has_membership_role(tenant_id, 'admin'));
 create policy profiles_update on public.profiles
-for update using (auth.uid() = id or is_platform_admin());
+for update using (auth.uid() = id or is_platform_admin() or has_membership_role(tenant_id, 'owner') or has_membership_role(tenant_id, 'admin'))
+with check (auth.uid() = id or is_platform_admin() or has_membership_role(tenant_id, 'owner') or has_membership_role(tenant_id, 'admin'));
 create policy profiles_insert on public.profiles
 for insert with check (auth.uid() = id or is_platform_admin());
 
@@ -317,22 +293,25 @@ DROP POLICY IF EXISTS "tenants_select_policy" ON public.tenants;
 CREATE POLICY "tenants_select_policy" ON public.tenants
   FOR SELECT USING (
     public.is_platform_admin() OR 
-    public.has_role('superadmin') OR
-    public.has_role('developer')
+    public.has_role('super_admin')
   );
 
 DROP POLICY IF EXISTS "tenants_insert_policy" ON public.tenants;
 CREATE POLICY "tenants_insert_policy" ON public.tenants
   FOR INSERT WITH CHECK (
     public.is_platform_admin() OR 
-    public.has_role('superadmin')
+    public.has_role('super_admin')
   );
 
 DROP POLICY IF EXISTS "tenants_update_policy" ON public.tenants;
 CREATE POLICY "tenants_update_policy" ON public.tenants
   FOR UPDATE USING (
     public.is_platform_admin() OR 
-    public.has_role('superadmin')
+    public.has_role('super_admin') OR
+    id = ANY(SELECT tenant_id FROM public.memberships WHERE user_id = auth.uid() AND role = 'owner')
+  ) WITH CHECK (
+    public.is_platform_admin() OR 
+    public.has_role('super_admin')
   );
 
 -- PROFILES: Políticas mejoradas para producción
@@ -1019,6 +998,37 @@ alter table public.study_session_participants enable row level security;
 -- VERIFICACIÓN DE RLS
 -- =============================================
 
+-- =============================================
+-- CERTIFICATE TEMPLATES POLICIES
+-- =============================================
+
+-- certificate_templates: solo admins pueden ver y gestionar plantillas
+create policy certificate_templates_select on public.certificate_templates
+for select using (
+  is_platform_admin() or 
+  (tenant_id is not null and is_tenant_member(auth.uid(), tenant_id) and has_role('admin'))
+);
+
+create policy certificate_templates_write on public.certificate_templates
+for all using (
+  is_platform_admin() or 
+  (tenant_id is not null and is_tenant_member(auth.uid(), tenant_id) and has_role('admin'))
+);
+
+-- =============================================
+-- AUDIT LOG POLICIES
+-- =============================================
+
+-- audit_log: solo admins pueden ver logs de auditoría
+create policy audit_log_select on public.audit_log
+for select using (
+  is_platform_admin() or 
+  (tenant_id is not null and is_tenant_member(auth.uid(), tenant_id) and has_role('admin'))
+);
+
+-- audit_log: inserción automática por triggers, no políticas de escritura manual necesarias
+-- Los logs se crean automáticamente por el sistema
+
 -- Función para verificar que todas las tablas tengan RLS habilitado
 DO $$
 DECLARE
@@ -1048,5 +1058,13 @@ BEGIN
     RAISE NOTICE 'Todas las tablas públicas tienen RLS habilitado correctamente.';
   END IF;
 END $$;
+
+-- =============================================
+-- PERMISOS GRANT EXECUTE PARA FUNCIONES HELPER
+-- =============================================
+
+GRANT EXECUTE ON FUNCTION public.has_membership_role(uuid, text, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_tenants(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_tenant_member(uuid, uuid) TO authenticated;
 
 commit;

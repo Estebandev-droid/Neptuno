@@ -3,6 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../hooks/useAuth'
 import { updateProfile } from '../../lib/usersService'
 import { useUser } from '../../hooks/useUsers'
+import { uploadUserAvatar } from '../../lib/uploadService'
+import FileUpload from '../../components/FileUpload'
 
 export default function ProfilePage() {
   const { user: authUser } = useAuth()
@@ -13,6 +15,7 @@ export default function ProfilePage() {
   const [fullName, setFullName] = useState('')
   const [avatarUrl, setAvatarUrl] = useState('')
   const [message, setMessage] = useState<string | null>(null)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
   useEffect(() => {
     if (profile) {
@@ -22,6 +25,25 @@ export default function ProfilePage() {
   }, [profile])
 
   const isDisabled = useMemo(() => !authUser || isLoading, [authUser, isLoading])
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!userId) return
+    
+    setIsUploadingAvatar(true)
+    setMessage(null)
+    
+    try {
+      const result = await uploadUserAvatar(file, userId)
+      setAvatarUrl(result.url)
+      setMessage('Avatar subido correctamente')
+      setTimeout(() => setMessage(null), 3000)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Error al subir el avatar')
+      setTimeout(() => setMessage(null), 4000)
+    } finally {
+      setIsUploadingAvatar(false)
+    }
+  }
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -79,25 +101,36 @@ export default function ProfilePage() {
               }}
               className="space-y-5"
             >
-              <div className="flex items-center gap-4">
-                <img
-                  src={avatarUrl || '/logo.webp'}
-                  alt="Avatar"
-                  className="h-16 w-16 rounded-full object-cover ring-2 ring-primary/20"
-                  onError={(e) => {
-                    ;(e.currentTarget as HTMLImageElement).src = '/logo.webp'
-                  }}
-                />
-                <div className="flex-1">
-                  <label className="block text-sm font-medium mb-1">URL de avatar</label>
-                  <input
-                    type="url"
-                    className="glass-input w-full px-3 py-2 rounded-lg"
-                    placeholder="https://..."
-                    value={avatarUrl}
-                    onChange={(e) => setAvatarUrl(e.target.value)}
-                    disabled={isDisabled || mutation.isPending}
-                  />
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Foto de perfil</label>
+                  <div className="flex items-start gap-4">
+                    <FileUpload
+                      type="avatar"
+                      onFileSelect={handleAvatarUpload}
+                      currentImageUrl={avatarUrl}
+                      maxSizeMB={3}
+                      disabled={isDisabled || mutation.isPending || isUploadingAvatar}
+                      className="flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <label className="block text-sm font-medium mb-1">O ingresa una URL</label>
+                      <input
+                        type="url"
+                        className="glass-input w-full px-3 py-2 rounded-lg"
+                        placeholder="https://..."
+                        value={avatarUrl}
+                        onChange={(e) => setAvatarUrl(e.target.value)}
+                        disabled={isDisabled || mutation.isPending || isUploadingAvatar}
+                      />
+                    </div>
+                  </div>
+                  {isUploadingAvatar && (
+                    <div className="flex items-center gap-2 mt-2 text-sm text-primary">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                      Subiendo avatar...
+                    </div>
+                  )}
                 </div>
               </div>
 

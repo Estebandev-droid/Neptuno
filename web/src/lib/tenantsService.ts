@@ -270,9 +270,9 @@ export async function getAvailableUsers(): Promise<Profile[]> {
   console.log('Consultando usuarios disponibles para asignar como administradores...')
   
   const { data, error } = await supabase
-    .from('profiles')
-    .select('id, email, full_name, avatar_url, role, tenant_id')
-    .in('role', ['teacher', 'student'])
+    .from('profiles_with_email')
+    .select('id, email, full_name, avatar_url, role')
+    .or('role.is.null,role.neq.student')
     .order('full_name', { ascending: true })
   
   if (error) {
@@ -280,7 +280,7 @@ export async function getAvailableUsers(): Promise<Profile[]> {
     throw error
   }
   
-  console.log('Usuarios disponibles:', data?.length || 0)
+  console.log('Usuarios disponibles (excluyendo estudiantes):', data?.length || 0)
   return (data as Profile[]) || []
 }
 

@@ -211,3 +211,12 @@ as $$
   where (p_tenant_id is null and r.is_system = true) or (r.tenant_id = p_tenant_id)
   order by r.is_system desc, r.name asc;
 $$;
+
+-- =============================================
+-- PERMISOS GRANT EXECUTE PARA FUNCIONES DE ROLES
+-- =============================================
+
+GRANT EXECUTE ON FUNCTION public.role_create(uuid, text, text, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.role_rename(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.role_delete(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.list_tenant_roles(uuid) TO authenticated;

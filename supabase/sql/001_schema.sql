@@ -148,14 +148,15 @@ create table public.evaluations (
   instructor_id uuid references auth.users(id) on delete set null,
   title text not null,
   description text,
+  questions jsonb default '[]'::jsonb, -- Preguntas de la evaluación
   max_score integer default 100, -- Cambiado a integer para scores enteros
   is_published boolean default false,
   evaluation_type text check (evaluation_type in ('quiz','exam','project','assignment')) default 'quiz',
-  duration_minutes integer default 60,
+  time_limit integer default 60, -- Renombrado de duration_minutes para consistencia
   instructions text,
   start_date timestamptz,
   end_date timestamptz,
-  attempts_allowed integer default 1,
+  max_attempts integer default 1, -- Renombrado de attempts_allowed para consistencia
   show_results boolean default true,
   randomize_questions boolean default false,
   passing_score integer default 60, -- Cambiado a integer para scores enteros
@@ -301,8 +302,21 @@ create table public.memberships (
   unique(user_id, tenant_id) -- Un usuario puede tener solo una membresía por tenant
 );
 
--- Nota: Se eliminaron las tablas 'roles' y 'user_roles' legacy
--- El sistema ahora usa únicamente 'memberships' con roles por tenant
+-- =============================================
+-- TABLA ROLES: Roles personalizables por tenant
+-- =============================================
+create table public.roles (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid references public.tenants(id) on delete cascade,
+  name text not null,
+  description text,
+  is_system boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (tenant_id, name)
+);
+
+-- Nota: Se mantiene la tabla 'roles' para compatibilidad con 006_roles.sql
+-- El sistema usa tanto 'memberships' como 'roles' para flexibilidad
 -- Para roles globales (super_admin), usar profiles.role
 
 create table if not exists public.audit_log (
@@ -347,6 +361,11 @@ create index if not exists idx_evaluation_attempts_evaluation on public.evaluati
 -- Índices para certificate_templates
 create index if not exists idx_certificate_templates_tenant_id on public.certificate_templates(tenant_id);
 create index if not exists idx_certificate_templates_active on public.certificate_templates(is_active);
+
+-- Índices para roles
+create index if not exists idx_roles_tenant_id on public.roles(tenant_id);
+create index if not exists idx_roles_tenant_name on public.roles(tenant_id, name);
+create index if not exists idx_roles_system on public.roles(is_system) where is_system = true;
 
 -- =============================================
 -- FUNCIONES Y TRIGGERS
@@ -426,7 +445,10 @@ begin
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'full_name', new.email),
-    coalesce(new.raw_user_meta_data->>'role', v_default_role),
+    case 
+      when new.raw_user_meta_data->>'created_by_admin' = 'true' then coalesce(new.raw_user_meta_data->>'role', v_default_role)
+      else v_default_role
+    end,
     v_tenant_id
   );
   
@@ -436,7 +458,10 @@ begin
     values (
       new.id,
       v_tenant_id,
-      coalesce(new.raw_user_meta_data->>'role', v_default_role),
+      case 
+        when new.raw_user_meta_data->>'created_by_admin' = 'true' then coalesce(new.raw_user_meta_data->>'role', v_default_role)
+        else v_default_role
+      end,
       true
     )
     on conflict (user_id, tenant_id) do update set
@@ -1025,3 +1050,10 @@ create index if not exists idx_resources_course_type_created
 create index if not exists idx_memberships_user_tenant_active 
   on public.memberships(user_id, tenant_id, is_active) 
   where is_active = true;
+
+-- =============================================
+-- PERMISOS GRANT EXECUTE PARA FUNCIONES DE SCHEMA
+-- =============================================
+
+GRANT EXECUTE ON FUNCTION public.set_updated_at() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.handle_new_user() TO authenticated;

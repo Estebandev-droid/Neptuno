@@ -3,6 +3,7 @@ import { type ReactNode } from 'react'
 import { AuthProvider } from './contexts/AuthContext'
 import { TenantProvider } from './contexts/TenantContext'
 import { useAuth } from './hooks/useAuth'
+import { useTenant } from './hooks/useTenant'
 import Login from './pages/auth/Login'
 import Dashboard from './pages/Dashboard'
 import AppLayout from './layouts/AppLayout'
@@ -51,6 +52,34 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+function RoleBasedHome() {
+  const { user } = useAuth()
+  const { selectedTenant, isLoading } = useTenant()
+
+  // Mientras cargan memberships/tenant
+  if (isLoading) {
+    return (
+      <div className="min-h-screen grid place-items-center text-gray-600">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+          <p className="mt-4">Preparando tu espacio...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Si no hay usuario (caso borde, debería estar protegido igual)
+  if (!user) return <Navigate to="/login" replace />
+
+  const role = selectedTenant?.role
+  let target = '/dashboard'
+  if (role === 'student') target = '/enrollments'
+  if (role === 'teacher') target = '/courses'
+  if (role === 'owner' || role === 'admin') target = '/dashboard'
+
+  return <Navigate to={target} replace />
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -62,7 +91,7 @@ export default function App() {
             <Route path="/signup" element={<Signup />} />
             {/* Área protegida con layout persistente */}
             <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route index element={<RoleBasedHome />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="roles" element={<RolesPage />} />
