@@ -28,11 +28,11 @@ Coherencia Backend-Frontend:
    ✅ Multi-tenancy básico
 ### Fase 2: Core Académico (EN PROGRESO)
 1. 1.
-   🔄 Gestión de Cursos - 80% completado
+   ✅ Gestión de Cursos - 100% completado
 2. 2.
    ✅ Inscripciones de Estudiantes - 100% completado
 3. 3.
-   🔄 Recursos Educativos - 60% completado
+   ✅ Recursos Educativos - 100% completado
 4. 4.
    ✅ Sistema de Evaluaciones - 100% completado
 ### Fase 3: Funcionalidades Avanzadas (PENDIENTE)

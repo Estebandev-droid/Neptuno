@@ -26,6 +26,7 @@ import ProfilePage from './pages/student/Profile'
 import MembershipsPage from './pages/admin/Memberships'
 import AdminEnrollmentsPage from './pages/admin/Enrollments'
 import EnrollmentReportsPage from './pages/admin/EnrollmentReports'
+import EvaluationTakePage from './pages/student/EvaluationTake'
 
 const queryClient = new QueryClient()
 
@@ -81,6 +82,7 @@ export default function App() {
               <Route path="certificates" element={<CertificatesPage />} />
               <Route path="evaluations" element={<EvaluationsPage />} />
               <Route path="profile" element={<ProfilePage />} />
+              <Route path="student/evaluations/:id/take" element={<EvaluationTakePage />} />
             </Route>
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>

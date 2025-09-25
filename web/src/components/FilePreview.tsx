@@ -15,7 +15,9 @@ const FilePreview: React.FC<FilePreviewProps> = ({
   className = '' 
 }) => {
   const getFileExtension = (url: string) => {
-    return url.split('.').pop()?.toLowerCase() || '';
+    // Limpiar querystring y hash para URLs firmadas
+    const cleanUrl = url.split('?')[0].split('#')[0];
+    return cleanUrl.split('.').pop()?.toLowerCase() || '';
   };
 
   const getMimeType = (url: string) => {

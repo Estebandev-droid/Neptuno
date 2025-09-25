@@ -210,6 +210,73 @@ create policy evaluations_write on public.evaluations
 for all using (is_platform_admin() or has_role('teacher'))
 with check (is_platform_admin() or has_role('teacher'));
 
+-- =============================================
+-- Evaluación: Preguntas, Respuestas y Intentos
+-- =============================================
+
+-- evaluation_questions: estudiantes inscritos pueden ver; solo admin/teacher escriben
+create policy evaluation_questions_select on public.evaluation_questions
+for select using (
+  is_platform_admin() or has_role('teacher') or
+  exists (
+    select 1 from public.evaluations e
+    join public.enrollments en on en.course_id = e.course_id
+    where e.id = evaluation_id
+      and en.student_id = auth.uid()
+      and en.status = 'active'
+  )
+);
+
+create policy evaluation_questions_write on public.evaluation_questions
+for all using (is_platform_admin() or has_role('teacher'))
+with check (is_platform_admin() or has_role('teacher'));
+
+-- student_answers: el estudiante dueño puede leer/escribir; admin/teacher pueden leer y actualizar para calificar
+create policy student_answers_select on public.student_answers
+for select using (
+  student_id = auth.uid() or is_platform_admin() or has_role('teacher')
+);
+
+create policy student_answers_insert on public.student_answers
+for insert with check (
+  student_id = auth.uid() or is_platform_admin() or has_role('teacher')
+);
+
+create policy student_answers_update on public.student_answers
+for update using (
+  student_id = auth.uid() or is_platform_admin() or has_role('teacher')
+) with check (
+  student_id = auth.uid() or is_platform_admin() or has_role('teacher')
+);
+
+create policy student_answers_delete on public.student_answers
+for delete using (
+  is_platform_admin() or has_role('teacher')
+);
+
+-- evaluation_attempts: el estudiante dueño puede leer/escribir; admin/teacher también
+create policy evaluation_attempts_select on public.evaluation_attempts
+for select using (
+  student_id = auth.uid() or is_platform_admin() or has_role('teacher')
+);
+
+create policy evaluation_attempts_insert on public.evaluation_attempts
+for insert with check (
+  student_id = auth.uid() or is_platform_admin() or has_role('teacher')
+);
+
+create policy evaluation_attempts_update on public.evaluation_attempts
+for update using (
+  student_id = auth.uid() or is_platform_admin() or has_role('teacher')
+) with check (
+  student_id = auth.uid() or is_platform_admin() or has_role('teacher')
+);
+
+create policy evaluation_attempts_delete on public.evaluation_attempts
+for delete using (
+  is_platform_admin() or has_role('teacher')
+);
+
 -- Calificaciones
 create policy grades_select on public.grades
 for select using (auth.uid() = student_id or is_platform_admin() or has_role('teacher'));

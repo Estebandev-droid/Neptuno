@@ -6,6 +6,7 @@ import { listProfiles } from '../../lib/usersService'
 import type { Profile } from '../../types/users'
 import type { Enrollment, EnrollmentStatus } from '../../types/enrollments'
 import { listEnrollments, enrollStudent, unenrollStudent, updateEnrollmentStatus, type PagedResult } from '../../lib/enrollmentsService'
+import { useTenant } from '../../hooks/useTenant'
 
 export default function EnrollmentsPage() {
   const qc = useQueryClient()
@@ -15,6 +16,8 @@ export default function EnrollmentsPage() {
   const pageSize = 10
   const [filterCourse, setFilterCourse] = useState<string>('')
   const [filterStatus, setFilterStatus] = useState<'all' | EnrollmentStatus>('all')
+  const { selectedTenant } = useTenant()
+  const isStudent = selectedTenant?.role === 'student'
 
   const { data, isLoading, isFetching, error } = useQuery<PagedResult<Enrollment>, Error, PagedResult<Enrollment>>({
     queryKey: ['enrollments', { page, pageSize, filterCourse, filterStatus }],
@@ -83,41 +86,42 @@ export default function EnrollmentsPage() {
             <label className="block text-sm font-medium mb-2">Estado</label>
             <select className="glass-input px-3 py-2 rounded-lg w-full" value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value as EnrollmentStatus | 'all'); setPage(1) }}>
               <option value="all">Todos</option>
-              <option value="pending">Pendiente</option>
               <option value="active">Activa</option>
               <option value="completed">Completada</option>
-              <option value="cancelled">Cancelada</option>
+              <option value="dropped">Baja</option>
             </select>
           </div>
         </div>
       </div>
 
       {/* Formulario de alta */}
-      <div className="glass-card p-4 rounded-xl">
-        <h3 className="font-semibold mb-3 text-light/90">Nueva inscripción</h3>
-        {formError && <div className="text-red-400 text-sm mb-3">{formError}</div>}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <label className="block text-sm font-medium mb-2">Curso</label>
-            <select className="glass-input px-3 py-2 rounded-lg w-full" value={newCourseId} onChange={(e) => setNewCourseId(e.target.value)}>
-              <option value="">Selecciona un curso</option>
-              {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">Estudiante</label>
-            <select className="glass-input px-3 py-2 rounded-lg w-full" value={newStudentId} onChange={(e) => setNewStudentId(e.target.value)}>
-              <option value="">Selecciona un estudiante</option>
-              {students.map(s => <option key={s.id} value={s.id}>{s.full_name ?? s.id}</option>)}
-            </select>
-          </div>
-          <div className="flex items-end">
-            <button className="glass-button px-4 py-2 rounded-lg disabled:opacity-50" disabled={!canCreate || createMut.isPending} onClick={() => createMut.mutate()}>
-              {createMut.isPending ? 'Creando...' : 'Crear inscripción'}
-            </button>
+      {!isStudent && (
+        <div className="glass-card p-4 rounded-xl">
+          <h3 className="font-semibold mb-3 text-light/90">Nueva inscripción</h3>
+          {formError && <div className="text-red-400 text-sm mb-3">{formError}</div>}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className="block text-sm font-medium mb-2">Curso</label>
+              <select className="glass-input px-3 py-2 rounded-lg w-full" value={newCourseId} onChange={(e) => setNewCourseId(e.target.value)}>
+                <option value="">Selecciona un curso</option>
+                {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Estudiante</label>
+              <select className="glass-input px-3 py-2 rounded-lg w-full" value={newStudentId} onChange={(e) => setNewStudentId(e.target.value)}>
+                <option value="">Selecciona un estudiante</option>
+                {students.map(s => <option key={s.id} value={s.id}>{s.full_name ?? s.id}</option>)}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button className="glass-button px-4 py-2 rounded-lg disabled:opacity-50" disabled={!canCreate || createMut.isPending} onClick={() => createMut.mutate()}>
+                {createMut.isPending ? 'Creando...' : 'Crear inscripción'}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Listado */}
       <div className="glass-card p-4 rounded-xl">
@@ -144,15 +148,25 @@ export default function EnrollmentsPage() {
                     <td className="py-2 pr-4">{student?.full_name ?? en.student_id}</td>
                     <td className="py-2 pr-4">{course?.title ?? en.course_id}</td>
                     <td className="py-2 pr-4">
-                      <select className="glass-input px-2 py-1 rounded" value={en.status} onChange={(e) => updateStatusMut.mutate({ id: en.id, status: e.target.value as EnrollmentStatus })}>
-                        <option value="active">Activa</option>
-                        <option value="completed">Completada</option>
-                        <option value="dropped">Baja</option>
-                      </select>
+                      {isStudent ? (
+                        <span className="px-2 py-1 rounded bg-white/5 text-light/80">
+                          {en.status === 'active' ? 'Activa' : en.status === 'completed' ? 'Completada' : 'Baja'}
+                        </span>
+                      ) : (
+                        <select className="glass-input px-2 py-1 rounded" value={en.status} onChange={(e) => updateStatusMut.mutate({ id: en.id, status: e.target.value as EnrollmentStatus })}>
+                          <option value="active">Activa</option>
+                          <option value="completed">Completada</option>
+                          <option value="dropped">Baja</option>
+                        </select>
+                      )}
                     </td>
                     <td className="py-2 pr-4">{en.enrolled_at ? new Date(en.enrolled_at).toLocaleString() : '-'}</td>
                     <td className="py-2 pr-4 text-right">
-                      <button className="glass-nav-item px-3 py-1.5 rounded-lg" onClick={() => removeMut.mutate(en.id)} disabled={removeMut.isPending}>Eliminar</button>
+                      {!isStudent && (
+                        <button className="glass-nav-item px-3 py-1.5 rounded-lg" onClick={() => removeMut.mutate(en.id)} disabled={removeMut.isPending}>
+                          Eliminar
+                        </button>
+                      )}
                     </td>
                   </tr>
                 )
