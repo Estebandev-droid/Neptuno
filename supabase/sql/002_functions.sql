@@ -657,23 +657,61 @@ end; $$;
 
 -- Revocar rol de usuario
 create or replace function public.user_role_revoke(p_user uuid, p_role_name text, p_tenant_id uuid default null)
-returns void
+returns jsonb
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_rows_affected integer := 0;
+  v_user_exists boolean := false;
 begin
+  -- Verificar que el usuario existe
+  select exists(select 1 from public.profiles where id = p_user) into v_user_exists;
+  
+  if not v_user_exists then
+    return jsonb_build_object(
+      'success', false,
+      'error', 'Usuario no encontrado',
+      'rows_affected', 0
+    );
+  end if;
+
   if p_tenant_id is null then
-    -- Actualizar rol global en profiles
+    -- Revocar rol global en profiles (solo si el usuario tiene ese rol)
     update public.profiles 
     set role = 'student', updated_at = now()
     where id = p_user and role = p_role_name;
+    
+    get diagnostics v_rows_affected = row_count;
   else
-    -- Remover membership específica del tenant
+    -- Desactivar membership específica del tenant
     update public.memberships 
     set is_active = false, updated_at = now()
-    where user_id = p_user and tenant_id = p_tenant_id and role = p_role_name;
+    where user_id = p_user and tenant_id = p_tenant_id and role = p_role_name and is_active = true;
+    
+    get diagnostics v_rows_affected = row_count;
   end if;
+  
+  return jsonb_build_object(
+    'success', true,
+    'message', case 
+      when v_rows_affected > 0 then 'Rol revocado exitosamente'
+      else 'El usuario no tenía ese rol asignado'
+    end,
+    'rows_affected', v_rows_affected,
+    'user_id', p_user,
+    'role_name', p_role_name,
+    'tenant_id', p_tenant_id
+  );
+  
+exception
+  when others then
+    return jsonb_build_object(
+      'success', false,
+      'error', SQLERRM,
+      'rows_affected', 0
+    );
 end; $$;
 
 -- Listar roles de usuario
@@ -3469,5 +3507,59 @@ GRANT EXECUTE ON FUNCTION get_evaluation_details(uuid) TO authenticated;
 
 -- Funciones de auditoría
 GRANT EXECUTE ON FUNCTION get_audit_trail(text, text, uuid, uuid, integer) TO authenticated;
+
+-- =============================================
+-- FUNCIÓN: Eliminar usuario de desarrollo
+-- =============================================
+create or replace function public.delete_dev_user(p_user_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_profile_exists boolean := false;
+  v_auth_user_exists boolean := false;
+  v_result jsonb;
+begin
+  -- Verificar si el perfil existe
+  select exists(select 1 from public.profiles where id = p_user_id) into v_profile_exists;
+  
+  -- Verificar si el usuario de auth existe
+  select exists(select 1 from auth.users where id = p_user_id) into v_auth_user_exists;
+  
+  if not v_profile_exists and not v_auth_user_exists then
+    return jsonb_build_object(
+      'success', false,
+      'error', 'Usuario no encontrado'
+    );
+  end if;
+  
+  -- Eliminar el perfil (esto activará el trigger de auditoría)
+  if v_profile_exists then
+    delete from public.profiles where id = p_user_id;
+  end if;
+  
+  -- Eliminar el usuario de auth (esto se hace en cascada por la FK)
+  if v_auth_user_exists then
+    delete from auth.users where id = p_user_id;
+  end if;
+  
+  return jsonb_build_object(
+    'success', true,
+    'message', 'Usuario eliminado exitosamente'
+  );
+  
+exception
+  when others then
+    return jsonb_build_object(
+      'success', false,
+      'error', SQLERRM
+    );
+end;
+$$;
+
+-- Otorgar permisos de ejecución
+GRANT EXECUTE ON FUNCTION public.delete_dev_user(uuid) TO authenticated;
 
 commit;

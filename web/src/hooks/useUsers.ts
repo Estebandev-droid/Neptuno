@@ -88,13 +88,17 @@ export function useUsers(options: UseUsersOptions = {}) {
 
   // Mutación para revocar rol
   const revokeRoleMutation = useMutation({
-    mutationFn: ({ userId, roleName }: { userId: string; roleName: string }) =>
-      revokeRole(userId, roleName),
+    mutationFn: ({ userId, roleName }: { userId: string; roleName: string }) => {
+      console.log('🚀 Iniciando mutación revokeRole:', { userId, roleName })
+      return revokeRole(userId, roleName)
+    },
     onSuccess: () => {
+      console.log('✅ Mutación revokeRole exitosa, invalidando queries')
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
+      queryClient.invalidateQueries({ queryKey: ['user-roles'] })
     },
     onError: (error) => {
-      console.error('Error revoking role:', error)
+      console.error('❌ Error en mutación revokeRole:', error)
     }
   })
 

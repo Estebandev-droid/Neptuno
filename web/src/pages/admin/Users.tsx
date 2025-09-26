@@ -98,10 +98,12 @@ export default function UsersPage() {
   }
 
   const handleRevokeRole = async (userId: string, role: string) => {
+    console.log('🎯 handleRevokeRole llamado:', { userId, role })
     try {
       await revokeRole.mutateAsync({ userId, roleName: role })
+      console.log('✅ handleRevokeRole completado exitosamente')
     } catch (error) {
-      console.error('Error revoking role:', error)
+      console.error('❌ Error en handleRevokeRole:', error)
     }
   }
 

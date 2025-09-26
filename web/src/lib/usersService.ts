@@ -96,8 +96,31 @@ export async function assignRole(userId: string, roleName: string): Promise<void
 }
 
 export async function revokeRole(userId: string, roleName: string): Promise<void> {
-  const { error } = await supabase.rpc('user_role_revoke', { p_user: userId, p_role_name: roleName })
-  if (error) throw error
+  console.log('🔄 Revocando rol:', { userId, roleName })
+  
+  const { data, error } = await supabase.rpc('user_role_revoke', { 
+    p_user: userId, 
+    p_role_name: roleName, 
+    p_tenant_id: null 
+  })
+  
+  console.log('📊 Resultado de revocar rol:', { data, error })
+  
+  if (error) {
+    console.error('❌ Error al revocar rol:', error)
+    throw error
+  }
+  
+  // Verificar la respuesta de la función
+  if (data && typeof data === 'object' && 'success' in data) {
+    if (!data.success) {
+      console.error('❌ Error en la función SQL:', data.error)
+      throw new Error(data.error || 'Error al revocar rol')
+    }
+    console.log('✅ Rol revocado exitosamente:', data.message)
+  } else {
+    console.log('✅ Rol revocado exitosamente (respuesta legacy)')
+  }
 }
 
 export async function getUserRoles(userId: string): Promise<string[]> {
